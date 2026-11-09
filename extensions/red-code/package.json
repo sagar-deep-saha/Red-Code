@@ -1,0 +1,126 @@
+{
+	"name": "red-code-productivity",
+	"displayName": "%displayName%",
+	"description": "%description%",
+	"version": "1.0.0",
+	"publisher": "redcode",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.147.0"
+	},
+	"main": "./out/extension.js",
+	"capabilities": {
+		"virtualWorkspaces": true,
+		"untrustedWorkspaces": {
+			"supported": true
+		}
+	},
+	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "redCode",
+					"title": "%containerTitle%",
+					"icon": "media/red-code.svg"
+				}
+			]
+		},
+		"views": {
+			"redCode": [
+				{
+					"id": "redCode.bookmarks",
+					"name": "%bookmarksViewTitle%",
+					"contextualTitle": "%bookmarksViewContextTitle%"
+				},
+				{
+					"id": "redCode.doctor",
+					"name": "%doctorViewTitle%",
+					"contextualTitle": "%doctorViewContextTitle%"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "redCode.bookmarks.add",
+				"title": "%addBookmarkCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.bookmarks.addActiveFile",
+				"title": "%bookmarkActiveFileCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.bookmarks.remove",
+				"title": "%removeBookmarkCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.bookmarks.refresh",
+				"title": "%refreshBookmarksCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.doctor.scanWorkspace",
+				"title": "%scanWorkspaceCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.doctor.checkTools",
+				"title": "%checkToolsCommand%",
+				"category": "Red Code"
+			}
+		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "redCode.bookmarks.remove",
+					"when": "never"
+				}
+			],
+			"explorer/context": [
+				{
+					"command": "redCode.bookmarks.add",
+					"group": "navigation@8"
+				}
+			],
+			"view/title": [
+				{
+					"command": "redCode.bookmarks.add",
+					"when": "view == redCode.bookmarks",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.bookmarks.refresh",
+					"when": "view == redCode.bookmarks",
+					"group": "navigation@2"
+				},
+				{
+					"command": "redCode.doctor.scanWorkspace",
+					"when": "view == redCode.doctor",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.doctor.checkTools",
+					"when": "view == redCode.doctor",
+					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "redCode.bookmarks.remove",
+					"when": "view == redCode.bookmarks && viewItem == redCodeBookmark",
+					"group": "inline"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"compile": "node ./esbuild.mts",
+		"watch": "node ./esbuild.mts --watch",
+		"test": "tsc -p tsconfig.json && node --test out/test/bookmarkModel.test.js out/test/doctorModel.test.js"
+	},
+	"devDependencies": {
+		"@types/node": "24.x"
+	}
+}

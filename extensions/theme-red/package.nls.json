@@ -1,5 +1,6 @@
 {
 	"displayName": "Red Theme",
-	"description": "Red theme for Visual Studio Code",
-	"themeLabel": "Red"
+	"description": "Red theme for Red Code",
+	"themeLabel": "Red",
+	"lightThemeLabel": "Red Light"
 }

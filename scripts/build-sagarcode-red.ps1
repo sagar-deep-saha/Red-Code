@@ -27,11 +27,12 @@ if (-not $vcInstall) {
 	throw 'Visual Studio 2022 C++ Build Tools and a Windows SDK are required. The build script will not install system-wide tools.'
 }
 
-& (Join-Path $PSScriptRoot 'create-sagarcode-red-icon.ps1')
 Push-Location $repoRoot
 try {
 	& corepack pnpm@12.16.0 install --frozen-lockfile
 	if ($LASTEXITCODE -ne 0) { throw "pnpm install failed with exit code $LASTEXITCODE" }
+	& node (Join-Path $PSScriptRoot 'create-red-code-icons.mjs')
+	if ($LASTEXITCODE -ne 0) { throw "Red Code icon generation failed with exit code $LASTEXITCODE" }
 
 	& corepack pnpm@12.16.0 run gulp vscode-win32-x64
 	if ($LASTEXITCODE -ne 0) { throw "The Windows x64 package build failed with exit code $LASTEXITCODE" }
@@ -41,9 +42,9 @@ finally {
 }
 
 $packagePath = Join-Path $workspaceRoot 'VSCode-win32-x64'
-$artifactPath = Join-Path $workspaceRoot 'SagarCodeRed-win32-x64'
-$artifactMarker = Join-Path $artifactPath '.sagarcode-red-build'
-if (-not (Test-Path -LiteralPath (Join-Path $packagePath 'SagarCode Red.exe') -PathType Leaf)) {
+$artifactPath = Join-Path $workspaceRoot 'RedCode-win32-x64'
+$artifactMarker = Join-Path $artifactPath '.red-code-build'
+if (-not (Test-Path -LiteralPath (Join-Path $packagePath 'Red Code.exe') -PathType Leaf)) {
 	throw "The expected packaged executable was not found in $packagePath"
 }
 if (Test-Path -LiteralPath $artifactPath) {

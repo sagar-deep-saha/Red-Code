@@ -71,6 +71,7 @@ const compilations = [
 	'extensions/npm/tsconfig.json',
 	'extensions/php-language-features/tsconfig.json',
 	'extensions/references-view/tsconfig.json',
+	'extensions/red-code/tsconfig.json',
 	'extensions/search-result/tsconfig.json',
 	'extensions/simple-browser/tsconfig.json',
 	'extensions/tunnel-forwarding/tsconfig.json',

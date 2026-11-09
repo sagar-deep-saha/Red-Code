@@ -30,6 +30,7 @@ packages:
   - npm
   - php-language-features
   - references-view
+  - red-code
   - search-result
   - simple-browser
   - tunnel-forwarding

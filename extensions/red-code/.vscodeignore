@@ -1,0 +1,9 @@
+# Sources, pre-esbuild output and build metadata are not shipped.
+# `dist/` (produced by esbuild.mts) is what the extension loads at runtime.
+src/**
+out/**
+node_modules/**
+tsconfig.json
+tsconfig.tsbuildinfo
+pnpm-lock.yaml
+esbuild.mts

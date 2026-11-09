@@ -157,8 +157,8 @@ const electronAssetResolver = electronFeed
 export const config = {
 	version: electronVersion,
 	productAppName: product.nameLong,
-	companyName: 'SagarCode',
-	copyright: 'Copyright (C) 2026 SagarCode contributors',
+	companyName: 'Red Code',
+	copyright: 'Copyright (C) 2026 Red Code contributors',
 	darwinExecutable: product.nameShort,
 	darwinIcon: 'resources/darwin/code.icns',
 	darwinBundleIdentifier: product.darwinBundleIdentifier,
