@@ -59,3 +59,7 @@ dist
 .v[0-9]*/
 # Local agent validation evidence
 .agent-validation/
+
+# Installers are published as release assets, never committed.
+/SagarCodeRed-Setup.exe
+/RedCode-Setup.exe
