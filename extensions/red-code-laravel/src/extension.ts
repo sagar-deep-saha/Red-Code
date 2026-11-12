@@ -19,6 +19,7 @@ import { openLocation, registerLocationCommand } from './locations.js';
 import { registerNavigation } from './navigation.js';
 import { detectLaravelProject, LaravelProject, resolvePhpPath } from './project.js';
 import { parseAboutJson } from './projectModel.js';
+import { LaravelTestController, registerTestController } from './testController.js';
 import { ArtisanTreeProvider } from './views/artisanView.js';
 import { LaravelViewContext } from './views/context.js';
 import { EnvTreeProvider, EnvViewDeps } from './views/envView.js';
@@ -362,6 +363,13 @@ export function activate(context: vscode.ExtensionContext): void {
 		await vscode.window.showTextDocument(logDocuments.publish(fileName, entry), { preview: true });
 	}
 
+	const testController: LaravelTestController = registerTestController({
+		runner,
+		channel,
+		project: () => resolveProject(),
+		trusted: () => vscode.workspace.isTrusted
+	});
+
 	const artisanDeps: ArtisanDeps = {
 		runner,
 		channel,
@@ -567,6 +575,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		envView,
 		logsView,
 		artisanView,
+		testController,
 		logDocuments,
 		vscode.workspace.registerTextDocumentContentProvider(LOG_SCHEME, logDocuments),
 		registerLocationCommand(),
@@ -631,6 +640,7 @@ export function activate(context: vscode.ExtensionContext): void {
 				project = undefined;
 				catalogCache = undefined;
 				index.invalidate();
+				testController.invalidate();
 				await ensureIndex(true);
 				return;
 			}
@@ -651,6 +661,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			project = undefined;
 			catalogCache = undefined;
 			index.invalidate();
+			testController.invalidate();
 			await resolveProject(true);
 			updateViewState();
 			await refreshEnvView();

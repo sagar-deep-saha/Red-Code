@@ -50,18 +50,19 @@ function probeEnvironment(): NodeJS.ProcessEnv {
 export class ArtisanRunner {
 	constructor(private readonly channel: vscode.OutputChannel) { }
 
-	async run(project: LaravelProject, args: readonly string[], options: RunOptions = {}): Promise<RunResult> {
-		if (!project.php) {
-			throw new Error(vscode.l10n.t('No php.exe was found. Set redCode.laravel.phpPath.'));
-		}
-
+	/**
+	 * Runs any executable with fixed argument arrays and no shell. Shared with
+	 * the test runner so both get the same environment allow-list, buffer limit
+	 * and cancellation behaviour.
+	 */
+	async exec(executable: string, args: readonly string[], cwd: string, options: RunOptions = {}): Promise<RunResult> {
 		const startedAt = Date.now();
-		const result = await new Promise<RunResult>(resolve => {
+		return new Promise<RunResult>(resolve => {
 			const child = execFile(
-				project.php as string,
-				[project.artisan.fsPath, ...args],
+				executable,
+				[...args],
 				{
-					cwd: project.root.fsPath,
+					cwd,
 					env: probeEnvironment(),
 					windowsHide: true,
 					timeout: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
@@ -85,6 +86,14 @@ export class ArtisanRunner {
 
 			const cancellation = options.token?.onCancellationRequested(() => child.kill());
 		});
+	}
+
+	async run(project: LaravelProject, args: readonly string[], options: RunOptions = {}): Promise<RunResult> {
+		if (!project.php) {
+			throw new Error(vscode.l10n.t('No php.exe was found. Set redCode.laravel.phpPath.'));
+		}
+
+		const result = await this.exec(project.php, [project.artisan.fsPath, ...args], project.root.fsPath, options);
 
 		this.channel.appendLine(redactSecrets(
 			`php artisan ${args.join(' ')} → exit ${result.code}, ${result.durationMs} ms${result.timedOut ? ' (timed out)' : ''}`

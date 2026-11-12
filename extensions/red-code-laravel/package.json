@@ -328,6 +328,11 @@
 					"minimum": 0.1,
 					"maximum": 50,
 					"description": "%logTailMbDescription%"
+				},
+				"redCode.laravel.test.parallel": {
+					"type": "boolean",
+					"default": false,
+					"description": "%testParallelDescription%"
 				}
 			}
 		},
