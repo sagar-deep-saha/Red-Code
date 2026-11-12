@@ -142,6 +142,29 @@ test('column shorthands expand to the columns Laravel would create', () => {
 	);
 });
 
+test('the timeline lists migrations in name order with their table effects', () => {
+	assert.deepEqual(schema.timeline.map(entry => entry.name), [
+		'create posts table', 'alter posts table', 'create articles table'
+	]);
+	assert.deepEqual(schema.timeline.map(entry => entry.timestamp), [
+		'2026_01_01_000000', '2026_01_02_000000', '2026_01_03_000000'
+	]);
+	assert.equal(schema.timeline[0].file, 'database/migrations/2026_01_01_000000_create_posts_table.php');
+
+	assert.deepEqual(schema.timeline[0].effects, [{ table: 'posts', effect: 'created' }]);
+	assert.deepEqual(schema.timeline[1].effects, [
+		{ table: 'posts', effect: 'altered' },
+		{ table: 'legacy', effect: 'dropped' }
+	]);
+});
+
+test('a migration without a timestamp keeps a readable name and no effects', () => {
+	const [entry] = parseMigrations([{ file: 'database/migrations/fix_slugs.php', text: '<?php' }]).timeline;
+	assert.equal(entry.timestamp, undefined);
+	assert.equal(entry.name, 'fix slugs');
+	assert.deepEqual(entry.effects, []);
+});
+
 test('parsing an empty migration list produces an empty schema', () => {
-	assert.deepEqual(parseMigrations([]), { tables: [], migrationCount: 0 });
+	assert.deepEqual(parseMigrations([]), { tables: [], migrationCount: 0, timeline: [] });
 });

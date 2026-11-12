@@ -8,6 +8,7 @@
 	"modelsViewTitle": "Models",
 	"schemaViewTitle": "Database",
 	"componentsViewTitle": "Components",
+	"migrationsViewTitle": "Migrations",
 	"envViewTitle": "Environment",
 	"logsViewTitle": "Logs",
 	"artisanViewTitle": "Artisan",

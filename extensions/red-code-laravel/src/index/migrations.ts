@@ -41,9 +41,27 @@ export interface SchemaTable {
 	readonly dropped: boolean;
 }
 
+export type MigrationEffectKind = 'created' | 'altered' | 'dropped';
+
+export interface MigrationEffect {
+	readonly table: string;
+	readonly effect: MigrationEffectKind;
+}
+
+export interface MigrationTimelineEntry {
+	readonly file: string;
+	/** Timestamp encoded in the file name, e.g. `2026_01_01_000001`. */
+	readonly timestamp: string | undefined;
+	/** Readable name derived from the file name, e.g. `create posts table`. */
+	readonly name: string;
+	readonly effects: readonly MigrationEffect[];
+}
+
 export interface DatabaseSchema {
 	readonly tables: readonly SchemaTable[];
 	readonly migrationCount: number;
+	/** Every migration in execution (file name) order, with its table effects. */
+	readonly timeline: readonly MigrationTimelineEntry[];
 }
 
 export interface MigrationFile {
@@ -212,6 +230,31 @@ function addIndex(table: MutableTable, columns: readonly string[], unique: boole
 	}
 }
 
+const MIGRATION_NAME = /^(\d{4}_\d{2}_\d{2}_\d{6})_(.+)$/;
+
+/** An effect plus the position it appeared at, so the file order survives. */
+interface IndexedEffect {
+	readonly index: number;
+	readonly effect: MigrationEffect;
+}
+
+function timelineEntry(file: string, effects: readonly IndexedEffect[]): MigrationTimelineEntry {
+	const base = file.slice(file.lastIndexOf('/') + 1).replace(/\.php$/i, '');
+	const match = MIGRATION_NAME.exec(base);
+	return {
+		file,
+		timestamp: match?.[1],
+		name: (match ? match[2] : base).replace(/_/g, ' '),
+		effects: [...effects].sort((left, right) => left.index - right.index).map(entry => entry.effect)
+	};
+}
+
+function addEffect(effects: IndexedEffect[], index: number, table: string, effect: MigrationEffectKind): void {
+	if (!effects.some(entry => entry.effect.table === table && entry.effect.effect === effect)) {
+		effects.push({ index, effect: { table, effect } });
+	}
+}
+
 function typeOf(method: string, args: string): string {
 	// The first argument is always the column name, so only the arguments after
 	// it describe the type (length, precision, enum values).
@@ -262,6 +305,7 @@ function typeOf(method: string, args: string): string {
 export function parseMigrations(files: readonly MigrationFile[]): DatabaseSchema {
 	const tables = new Map<string, MutableTable>();
 	const ordered = [...files].sort((left, right) => left.file.localeCompare(right.file));
+	const timeline: MigrationTimelineEntry[] = [];
 
 	const tableForName = (name: string): MutableTable => {
 		const existing = tables.get(name);
@@ -283,6 +327,7 @@ export function parseMigrations(files: readonly MigrationFile[]): DatabaseSchema
 
 	for (const migration of ordered) {
 		const location = (index: number): SourceLocation => ({ file: migration.file, line: lineAt(migration.text, index) });
+		const effects: IndexedEffect[] = [];
 
 		DROP_TABLE.lastIndex = 0;
 		let drop = DROP_TABLE.exec(migration.text);
@@ -290,6 +335,7 @@ export function parseMigrations(files: readonly MigrationFile[]): DatabaseSchema
 			const table = tableForName(drop[1]);
 			table.dropped = true;
 			table.lastChangedIn = location(drop.index);
+			addEffect(effects, drop.index, drop[1], 'dropped');
 			drop = DROP_TABLE.exec(migration.text);
 		}
 
@@ -307,6 +353,7 @@ export function parseMigrations(files: readonly MigrationFile[]): DatabaseSchema
 			} else {
 				table.lastChangedIn = blockLocation;
 			}
+			addEffect(effects, block.index, name, kind === 'create' ? 'created' : 'altered');
 
 			const open = migration.text.indexOf('{', block.index + block[0].length - 1);
 			const close = open >= 0 ? matchingBrace(migration.text, open) : -1;
@@ -395,10 +442,13 @@ export function parseMigrations(files: readonly MigrationFile[]): DatabaseSchema
 
 			block = CREATE_OR_ALTER.exec(migration.text);
 		}
+
+		timeline.push(timelineEntry(migration.file, effects));
 	}
 
 	return {
 		tables: [...tables.values()].sort((left, right) => left.name.localeCompare(right.name)),
-		migrationCount: ordered.length
+		migrationCount: ordered.length,
+		timeline
 	};
 }

@@ -22,6 +22,7 @@
 		"onView:redCode.laravel.models",
 		"onView:redCode.laravel.schema",
 		"onView:redCode.laravel.components",
+		"onView:redCode.laravel.migrations",
 		"onView:redCode.laravel.env",
 		"onView:redCode.laravel.logs",
 		"onView:redCode.laravel.artisan"
@@ -57,6 +58,10 @@
 				{
 					"id": "redCode.laravel.components",
 					"name": "%componentsViewTitle%"
+				},
+				{
+					"id": "redCode.laravel.migrations",
+					"name": "%migrationsViewTitle%"
 				},
 				{
 					"id": "redCode.laravel.env",
@@ -224,7 +229,7 @@
 			"view/title": [
 				{
 					"command": "redCode.laravel.refresh",
-					"when": "view == redCode.laravel.routes || view == redCode.laravel.project || view == redCode.laravel.models || view == redCode.laravel.schema || view == redCode.laravel.components",
+					"when": "view == redCode.laravel.routes || view == redCode.laravel.project || view == redCode.laravel.models || view == redCode.laravel.schema || view == redCode.laravel.components || view == redCode.laravel.migrations",
 					"group": "navigation@1"
 				},
 				{

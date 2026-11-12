@@ -26,6 +26,7 @@ import { LaravelViewContext } from './views/context.js';
 import { EnvTreeProvider, EnvViewDeps } from './views/envView.js';
 import { DEFAULT_LOG_LEVELS, LogsTreeProvider, LogsViewDeps } from './views/logsView.js';
 import { ModelsTreeProvider } from './views/modelsView.js';
+import { MigrationsTreeProvider } from './views/migrationsView.js';
 import { ProjectExplorerProvider } from './views/projectExplorer.js';
 import { RoutesTreeProvider } from './views/routesView.js';
 import { SchemaTreeProvider } from './views/schemaView.js';
@@ -190,6 +191,12 @@ export function activate(context: vscode.ExtensionContext): void {
 	const componentsProvider = new ComponentsTreeProvider(viewContext);
 	const componentsView = vscode.window.createTreeView('redCode.laravel.components', {
 		treeDataProvider: componentsProvider,
+		showCollapseAll: true
+	});
+
+	const migrationsProvider = new MigrationsTreeProvider(viewContext);
+	const migrationsView = vscode.window.createTreeView('redCode.laravel.migrations', {
+		treeDataProvider: migrationsProvider,
 		showCollapseAll: true
 	});
 
@@ -400,12 +407,14 @@ export function activate(context: vscode.ExtensionContext): void {
 			modelsView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
 			schemaView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
 			componentsView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
+			migrationsView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
 			artisanView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
 			routesView.description = undefined;
 			explorerView.description = undefined;
 			modelsView.description = undefined;
 			schemaView.description = undefined;
 			componentsView.description = undefined;
+			migrationsView.description = undefined;
 			artisanView.description = undefined;
 			return;
 		}
@@ -416,6 +425,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			modelsView.message = vscode.l10n.t('Loading Laravel index…');
 			schemaView.message = vscode.l10n.t('Loading Laravel index…');
 			componentsView.message = vscode.l10n.t('Loading Laravel index…');
+			migrationsView.message = vscode.l10n.t('Loading Laravel index…');
 			artisanView.message = undefined;
 			return;
 		}
@@ -446,6 +456,11 @@ export function activate(context: vscode.ExtensionContext): void {
 		// Restricted Mode and never depend on a database connection.
 		componentsView.message = counts.components === 0 ? vscode.l10n.t('No Blade components found.') : undefined;
 		componentsView.description = vscode.l10n.t('{0} components', String(counts.components));
+
+		// The migration timeline is read from file names and declarations, so it
+		// stays populated in Restricted Mode as well.
+		migrationsView.message = counts.migrations === 0 ? vscode.l10n.t('No migrations found.') : undefined;
+		migrationsView.description = vscode.l10n.t('{0} migrations', String(counts.migrations));
 	}
 
 	function currentRoute(arg: unknown): RouteEntry | undefined {
@@ -540,6 +555,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		modelsProvider.refresh();
 		schemaProvider.refresh();
 		componentsProvider.refresh();
+		migrationsProvider.refresh();
 		updateViewState();
 	});
 
@@ -589,6 +605,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		modelsView,
 		schemaView,
 		componentsView,
+		migrationsView,
 		envView,
 		logsView,
 		artisanView,
