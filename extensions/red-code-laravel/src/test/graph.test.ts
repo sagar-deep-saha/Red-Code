@@ -162,6 +162,26 @@ test('component usage is derived from Blade tags in non-component views', () => 
 	assert.deepEqual(graph.usedBy('missing'), []);
 });
 
+test('component usage also counts @component directives and strips the prefix', () => {
+	const show: IndexedView = {
+		name: 'posts.show',
+		componentName: undefined,
+		file: 'resources/views/posts/show.blade.php',
+		isComponent: false,
+		references: [{ kind: 'component', value: 'components.alert', line: 5, index: 0 }]
+	};
+	const local = buildGraph({ routes: [], classes: [], views: [alert, show], files: [] });
+	assert.deepEqual(local.usedBy('alert').map(view => view.name), ['posts.show']);
+
+	const unrelated = buildGraph({
+		routes: [],
+		classes: [],
+		views: [{ ...show, references: [{ kind: 'include', value: 'components.alert', line: 5, index: 0 }] }],
+		files: []
+	});
+	assert.deepEqual(unrelated.usedBy('alert'), []);
+});
+
 test('model and controller detection does not depend on folder naming alone', () => {
 	assert.equal(graph.isController(controller), true);
 	assert.equal(graph.isModel(user), true);

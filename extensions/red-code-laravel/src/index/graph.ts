@@ -120,10 +120,11 @@ export class LaravelGraph {
 
 		for (const view of input.views) {
 			for (const reference of view.references) {
-				if (reference.kind !== 'tag') {
+				const referenceName = componentReferenceName(reference);
+				if (!referenceName) {
 					continue;
 				}
-				const component = this.components.get(reference.value);
+				const component = this.components.get(referenceName);
 				if (!component) {
 					continue;
 				}
@@ -243,6 +244,21 @@ export class LaravelGraph {
 			tests
 		};
 	}
+}
+
+/**
+ * `<x-alert />` yields the tag name, while `@component('components.alert')`
+ * yields the view name. Both point at the same component, so the `components.`
+ * prefix is stripped before the lookup. Anything else is not a component edge.
+ */
+function componentReferenceName(reference: BladeReference): string | undefined {
+	if (reference.kind === 'tag') {
+		return reference.value;
+	}
+	if (reference.kind === 'component') {
+		return reference.value.replace(/^components\./i, '');
+	}
+	return undefined;
 }
 
 export function buildGraph(input: GraphInput): LaravelGraph {
