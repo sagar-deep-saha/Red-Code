@@ -25,14 +25,14 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "redCode.laravel",
+					"id": "redCodeLaravel",
 					"title": "%containerTitle%",
 					"icon": "media/laravel.svg"
 				}
 			]
 		},
 		"views": {
-			"redCode.laravel": [
+			"redCodeLaravel": [
 				{
 					"id": "redCode.laravel.project",
 					"name": "%projectViewTitle%"
