@@ -1,0 +1,19 @@
+{
+	"displayName": "Red Code Sync",
+	"description": "Signs in with GitHub and keeps settings, keybindings, snippets and the extension list in a private Gist.",
+	"signInCommand": "Sign In with GitHub",
+	"signInWithTokenCommand": "Sign In with a GitHub Token",
+	"signOutCommand": "Sign Out",
+	"syncNowCommand": "Sync Now",
+	"pushCommand": "Upload This Machine's Data",
+	"pullCommand": "Restore from GitHub",
+	"statusCommand": "Show Sync Status",
+	"viewRemoteCommand": "Show What Is Stored on GitHub",
+	"gistDescriptionDescription": "Description used for the private Gist that holds synced data. Change it to keep separate sync profiles.",
+	"excludeSettingsDescription": "Setting keys that are never uploaded. `*` at the end matches a prefix, so `redCode.sync.*` excludes every sync setting.",
+	"includeExtensionsDescription": "Include the list of installed extensions, and offer to install missing ones when restoring.",
+	"includeKeybindingsDescription": "Include your keybindings.json.",
+	"includeSnippetsDescription": "Include user snippets from the snippets folder.",
+	"includeSecretDescription": "Also upload settings whose key looks like a credential (token, secret, password, API key). Off by default: values are stored in a private Gist, but still leave GitHub.",
+	"autoPushDescription": "Upload automatically a few seconds after a setting changes. Off by default; Sync Now is always available."
+}

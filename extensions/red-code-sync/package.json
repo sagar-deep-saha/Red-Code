@@ -1,0 +1,123 @@
+{
+	"name": "red-code-sync",
+	"displayName": "%displayName%",
+	"description": "%description%",
+	"version": "1.0.0",
+	"publisher": "redcode",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.147.0"
+	},
+	"main": "./out/extension.js",
+	"capabilities": {
+		"virtualWorkspaces": true,
+		"untrustedWorkspaces": {
+			"supported": true
+		}
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "redCode.sync.signIn",
+				"title": "%signInCommand%",
+				"category": "Red Code Sync"
+			},
+			{
+				"command": "redCode.sync.signInWithToken",
+				"title": "%signInWithTokenCommand%",
+				"category": "Red Code Sync"
+			},
+			{
+				"command": "redCode.sync.signOut",
+				"title": "%signOutCommand%",
+				"category": "Red Code Sync"
+			},
+			{
+				"command": "redCode.sync.syncNow",
+				"title": "%syncNowCommand%",
+				"category": "Red Code Sync"
+			},
+			{
+				"command": "redCode.sync.push",
+				"title": "%pushCommand%",
+				"category": "Red Code Sync"
+			},
+			{
+				"command": "redCode.sync.pull",
+				"title": "%pullCommand%",
+				"category": "Red Code Sync"
+			},
+			{
+				"command": "redCode.sync.showStatus",
+				"title": "%statusCommand%",
+				"category": "Red Code Sync"
+			},
+			{
+				"command": "redCode.sync.viewRemote",
+				"title": "%viewRemoteCommand%",
+				"category": "Red Code Sync"
+			}
+		],
+		"configurationDefaults": {
+			"github-authentication.preferDeviceCodeFlow": true
+		},
+		"configuration": {
+			"title": "Red Code Sync",
+			"properties": {
+				"redCode.sync.gistDescription": {
+					"type": "string",
+					"default": "Red Code Sync",
+					"description": "%gistDescriptionDescription%"
+				},
+				"redCode.sync.excludeSettings": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"redCode.sync.*",
+						"redCode.updates.*",
+						"redCode.laravel.phpPath"
+					],
+					"description": "%excludeSettingsDescription%"
+				},
+				"redCode.sync.includeExtensions": {
+					"type": "boolean",
+					"default": true,
+					"description": "%includeExtensionsDescription%"
+				},
+				"redCode.sync.includeKeybindings": {
+					"type": "boolean",
+					"default": true,
+					"description": "%includeKeybindingsDescription%"
+				},
+				"redCode.sync.includeSnippets": {
+					"type": "boolean",
+					"default": true,
+					"description": "%includeSnippetsDescription%"
+				},
+				"redCode.sync.includeSecretLikeSettings": {
+					"type": "boolean",
+					"default": false,
+					"description": "%includeSecretDescription%"
+				},
+				"redCode.sync.autoPush": {
+					"type": "boolean",
+					"default": false,
+					"description": "%autoPushDescription%"
+				}
+			}
+		}
+	},
+	"scripts": {
+		"compile": "node ./esbuild.mts",
+		"watch": "node ./esbuild.mts --watch",
+		"test": "tsc -p tsconfig.json && node --test \"out/test/*.test.js\""
+	},
+	"devDependencies": {
+		"@types/node": "24.x"
+	}
+}
