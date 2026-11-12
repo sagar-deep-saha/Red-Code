@@ -221,9 +221,11 @@ zone.js/dist/**
 @xterm/xterm-addon-*/out/**
 @xterm/xterm-addon-*/out-test/**
 
-# @github/copilot - strip unneeded binaries and files
-# Agent Host uses the runtime bundled with @github/copilot-sdk.
-@github/copilot/**
+# @github/copilot is a production dependency of the built-in copilot extension.
+# Its `sdk/` folder is where the target-platform runtime is materialized during
+# packaging, so it must survive node_modules cleanup: ancestor-based local builds
+# (which compile copilot from source instead of consuming a downloaded VSIX) fail
+# without it. Non-target platforms are pruned by prepareBuiltInCopilotRipgrepShim.
 
 # Standalone Copilot CLI platform packages are not product dependencies.
 @github/copilot-darwin-arm64/**
