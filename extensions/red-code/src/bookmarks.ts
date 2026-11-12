@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
-import { BookmarkRecord, normalizeRelativePath, parseBookmarkState, resolveWorkspaceRoot, SerializedBookmarkState } from './bookmarkModel.js';
+import { BookmarkRecord, isSameOrDescendantPath, normalizeRelativePath, parseBookmarkState, renameBookmarkPath, resolveWorkspaceRoot, SerializedBookmarkState } from './bookmarkModel.js';
 
 const STORAGE_KEY = 'redCode.projectBookmarks.v1';
 
@@ -12,16 +12,31 @@ export class ProjectBookmarks implements vscode.TreeDataProvider<BookmarkItem> {
 	private readonly changeEmitter = new vscode.EventEmitter<BookmarkItem | undefined | null | void>();
 	readonly onDidChangeTreeData = this.changeEmitter.event;
 	private readonly treeView: vscode.TreeView<BookmarkItem>;
+	private readonly decorationProvider: BookmarkDecorationProvider;
+	private readonly disposables: vscode.Disposable[] = [];
+	private bookmarkedUris = new Set<string>();
 
 	constructor(private readonly context: vscode.ExtensionContext) {
 		this.treeView = vscode.window.createTreeView('redCode.bookmarks', {
 			treeDataProvider: this,
 			showCollapseAll: false
 		});
+
+		this.decorationProvider = new BookmarkDecorationProvider(uri => this.bookmarkedUris.has(uri.toString()));
+		this.disposables.push(
+			this.treeView,
+			vscode.window.registerFileDecorationProvider(this.decorationProvider),
+			vscode.workspace.onDidRenameFiles(event => void this.handleRenamedFiles(event)),
+			vscode.workspace.onDidDeleteFiles(event => void this.handleDeletedFiles(event))
+		);
+		this.updateDecorations();
 	}
 
 	dispose(): void {
-		this.treeView.dispose();
+		for (const disposable of this.disposables) {
+			disposable.dispose();
+		}
+		this.decorationProvider.dispose();
 		this.changeEmitter.dispose();
 	}
 
@@ -94,7 +109,92 @@ export class ProjectBookmarks implements vscode.TreeDataProvider<BookmarkItem> {
 	}
 
 	refresh(): void {
+		this.updateDecorations();
 		this.changeEmitter.fire();
+	}
+
+	private updateDecorations(): void {
+		const uris = new Set<string>();
+		for (const bookmark of this.readBookmarks()) {
+			const uri = this.resolveUri(bookmark);
+			if (uri) {
+				uris.add(uri.toString());
+			}
+		}
+		this.bookmarkedUris = uris;
+		this.decorationProvider.fire();
+	}
+
+	/**
+	 * Keeps bookmarks pointing at the new location when files or folders are
+	 * renamed or moved inside the workspace.
+	 */
+	private async handleRenamedFiles(event: vscode.FileRenameEvent): Promise<void> {
+		const bookmarks = this.readBookmarks();
+		if (bookmarks.length === 0) {
+			return;
+		}
+
+		const roots = vscode.workspace.workspaceFolders ?? [];
+		let changed = false;
+		const updated = bookmarks.map(bookmark => {
+			let current = bookmark;
+			for (const file of event.files) {
+				const root = resolveWorkspaceRoot(roots, current);
+				if (!root) {
+					continue;
+				}
+				const oldPath = this.toRelativePath(root.uri, file.oldUri);
+				const newPath = this.toRelativePath(root.uri, file.newUri);
+				if (oldPath === undefined || newPath === undefined) {
+					continue;
+				}
+				const renamed = renameBookmarkPath(current, oldPath, newPath);
+				if (renamed) {
+					current = renamed;
+					changed = true;
+				}
+			}
+			return current;
+		});
+
+		if (changed) {
+			await this.writeBookmarks(updated);
+		}
+	}
+
+	/**
+	 * Drops bookmarks whose file or folder was deleted, instead of leaving
+	 * entries that open an empty editor.
+	 */
+	private async handleDeletedFiles(event: vscode.FileDeleteEvent): Promise<void> {
+		const bookmarks = this.readBookmarks();
+		if (bookmarks.length === 0) {
+			return;
+		}
+
+		const roots = vscode.workspace.workspaceFolders ?? [];
+		const deleted: { readonly rootIndex: number; readonly relativePath: string }[] = [];
+		for (const uri of event.files) {
+			const root = vscode.workspace.getWorkspaceFolder(uri);
+			if (!root) {
+				continue;
+			}
+			const relativePath = this.toRelativePath(root.uri, uri);
+			if (relativePath !== undefined) {
+				deleted.push({ rootIndex: roots.indexOf(root), relativePath });
+			}
+		}
+
+		if (deleted.length === 0) {
+			return;
+		}
+
+		const remaining = bookmarks.filter(bookmark => !deleted.some(entry =>
+			entry.rootIndex === bookmark.rootIndex && isSameOrDescendantPath(bookmark.relativePath, entry.relativePath)));
+		if (remaining.length !== bookmarks.length) {
+			await this.writeBookmarks(remaining);
+		}
 	}
 
 	private readBookmarks(): BookmarkRecord[] {
@@ -186,5 +286,32 @@ export class BookmarkItem extends vscode.TreeItem {
 		super(bookmark.label, vscode.TreeItemCollapsibleState.None);
 		this.id = bookmark.id;
 		this.tooltip = bookmark.relativePath || bookmark.rootName;
+	}
+}
+
+/**
+ * Marks bookmarked files and folders in the Explorer so the badge matches the
+ * Bookmarks view without duplicating navigation.
+ */
+class BookmarkDecorationProvider implements vscode.FileDecorationProvider {
+	private readonly changeEmitter = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+	readonly onDidChangeFileDecorations = this.changeEmitter.event;
+
+	constructor(private readonly isBookmarked: (uri: vscode.Uri) => boolean) {
+	}
+
+	provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
+		if (!this.isBookmarked(uri)) {
+			return undefined;
+		}
+		return new vscode.FileDecoration('•', vscode.l10n.t('Red Code bookmark'), new vscode.ThemeColor('list.highlightForeground'));
+	}
+
+	fire(): void {
+		this.changeEmitter.fire(undefined);
+	}
+
+	dispose(): void {
+		this.changeEmitter.dispose();
 	}
 }

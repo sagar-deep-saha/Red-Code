@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { normalizeRelativePath, parseBookmarkState, resolveWorkspaceRoot } from '../bookmarkModel.js';
+import { isSameOrDescendantPath, normalizeRelativePath, parseBookmarkState, renameBookmarkPath, resolveWorkspaceRoot } from '../bookmarkModel.js';
 
 const validBookmark = {
 	id: 'bookmark-1',
@@ -36,4 +36,31 @@ test('bookmark roots survive a single-folder rename and resolve uniquely by name
 	const namedMultiRoot = resolveWorkspaceRoot([{ name: 'api' }, { name: 'web' }], { rootName: 'web', rootIndex: 0 });
 	const ambiguousMultiRoot = resolveWorkspaceRoot([{ name: 'api' }, { name: 'api' }], { rootName: 'api', rootIndex: 2 });
 	assert.deepEqual([renamedSingleRoot?.name, namedMultiRoot?.name, ambiguousMultiRoot], ['renamed-project', 'web', undefined]);
+});
+
+test('renamed bookmarks follow the file and keep their label in sync', () => {
+	const renamed = renameBookmarkPath(validBookmark, 'src/index.ts', 'src/main.ts');
+	assert.equal(renamed?.relativePath, 'src/main.ts');
+	assert.equal(renamed?.label, 'main.ts');
+	assert.equal(renamed?.id, validBookmark.id);
+});
+
+test('renaming a folder remaps its bookmarked children and leaves others untouched', () => {
+	const child = { ...validBookmark, id: 'bookmark-2', relativePath: 'docs/guide/setup.md', label: 'setup.md' };
+	const moved = renameBookmarkPath(child, 'docs', 'documentation');
+	assert.equal(moved?.relativePath, 'documentation/guide/setup.md');
+
+	const untouched = renameBookmarkPath(child, 'src', 'source');
+	assert.equal(untouched, undefined);
+});
+
+test('bookmarks moved to the workspace root stay valid and paths are matched exactly', () => {
+	assert.equal(isSameOrDescendantPath('src/lib/file.ts', 'src'), true);
+	assert.equal(isSameOrDescendantPath('src', 'src'), true);
+	assert.equal(isSameOrDescendantPath('srcthing/file.ts', 'src'), false);
+
+	const folderBookmark = { ...validBookmark, id: 'bookmark-3', relativePath: 'src', label: 'src', kind: 'folder' as const };
+	const renamedFolder = renameBookmarkPath(folderBookmark, 'src', 'source');
+	assert.equal(renamedFolder?.relativePath, 'source');
+	assert.equal(renamedFolder?.label, 'source');
 });

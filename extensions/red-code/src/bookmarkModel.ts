@@ -51,6 +51,47 @@ export function resolveWorkspaceRoot<T extends WorkspaceRootIdentity>(roots: rea
 	return namedRoots.length === 1 ? namedRoots[0] : undefined;
 }
 
+/**
+ * Whether `path` is `parentPath` itself or lives below it. An empty parent path
+ * matches every path, because it addresses the workspace folder root.
+ */
+export function isSameOrDescendantPath(path: string, parentPath: string): boolean {
+	if (parentPath.length === 0) {
+		return true;
+	}
+	return path === parentPath || path.startsWith(`${parentPath}/`);
+}
+
+/**
+ * Rewrites a bookmark after a rename, moving it together with the renamed file
+ * or folder. Returns `undefined` when the bookmark is not affected, or when the
+ * new path would leave the workspace.
+ */
+export function renameBookmarkPath(bookmark: BookmarkRecord, oldRelativePath: string, newRelativePath: string): BookmarkRecord | undefined {
+	if (oldRelativePath.length === 0 || !isSameOrDescendantPath(bookmark.relativePath, oldRelativePath)) {
+		return undefined;
+	}
+
+	const newBase = normalizeRelativePath(newRelativePath);
+	if (newBase === undefined) {
+		return undefined;
+	}
+
+	const suffix = bookmark.relativePath.slice(oldRelativePath.length);
+	const combined = bookmark.relativePath === oldRelativePath
+		? newBase
+		: newBase.length === 0
+			? suffix.replace(/^\//, '')
+			: `${newBase}${suffix}`;
+	const renamed = normalizeRelativePath(combined);
+	if (renamed === undefined) {
+		return undefined;
+	}
+
+	const label = renamed.split('/').filter(Boolean).at(-1);
+	return { ...bookmark, relativePath: renamed, label: label || bookmark.label };
+}
+
 export function parseBookmarkState(value: unknown): BookmarkRecord[] {
 	if (!value || typeof value !== 'object') {
 		return [];

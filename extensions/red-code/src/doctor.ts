@@ -62,10 +62,10 @@ const LOCALIZED_DESCRIPTIONS = new Map<string, string>([
 	['No .env file found; contents were not read', vscode.l10n.t('No .env file found; contents were not read')]
 ]);
 
-export class WorkspaceDoctor implements vscode.TreeDataProvider<DoctorItem> {
-	private readonly changeEmitter = new vscode.EventEmitter<DoctorItem | undefined | null | void>();
+export class WorkspaceDoctor implements vscode.TreeDataProvider<DoctorItem | DoctorGroupItem> {
+	private readonly changeEmitter = new vscode.EventEmitter<DoctorItem | DoctorGroupItem | undefined | null | void>();
 	readonly onDidChangeTreeData = this.changeEmitter.event;
-	private readonly treeView: vscode.TreeView<DoctorItem>;
+	private readonly treeView: vscode.TreeView<DoctorItem | DoctorGroupItem>;
 	private workspaceChecks: DoctorCheck[] = [];
 	private toolChecks: DoctorCheck[] = [];
 	private activeOperations = 0;
@@ -74,7 +74,7 @@ export class WorkspaceDoctor implements vscode.TreeDataProvider<DoctorItem> {
 	constructor() {
 		this.treeView = vscode.window.createTreeView('redCode.doctor', {
 			treeDataProvider: this,
-			showCollapseAll: false
+			showCollapseAll: true
 		});
 	}
 
@@ -83,34 +83,46 @@ export class WorkspaceDoctor implements vscode.TreeDataProvider<DoctorItem> {
 		this.changeEmitter.dispose();
 	}
 
-	getChildren(): DoctorItem[] {
+	getChildren(element?: DoctorItem | DoctorGroupItem): Array<DoctorItem | DoctorGroupItem> {
+		if (element instanceof DoctorGroupItem) {
+			return [...element.items];
+		}
 		if (this.activeOperations > 0) {
 			return [new DoctorItem(vscode.l10n.t('Checking workspace…'), '', 'info')];
 		}
-		const checks = [...this.workspaceChecks, ...this.toolChecks];
-		if (checks.length === 0) {
+		if (this.workspaceChecks.length === 0 && this.toolChecks.length === 0) {
 			return [new DoctorItem(vscode.l10n.t('Select Scan Workspace to inspect project files.'), '', 'info')];
 		}
-		const items = checks.map(check => {
-			const label = LOCALIZED_LABELS.get(check.label) ?? check.label;
-			return new DoctorItem(
-				check.folderName ? vscode.l10n.t('{0}: {1}', check.folderName, label) : label,
-				LOCALIZED_DESCRIPTIONS.get(check.description) ?? check.description,
-				check.status
-			);
-		});
-		if (this.skippedFolderCount > 0) {
-			items.push(new DoctorItem(
-				vscode.l10n.t('Additional workspace folders'),
-				vscode.l10n.t('Skipped {0} folders to keep the scan bounded.', this.skippedFolderCount),
-				'info'
-			));
+
+		const groups: DoctorGroupItem[] = [];
+		if (this.workspaceChecks.length > 0) {
+			const items = this.workspaceChecks.map(check => this.createItem(check));
+			if (this.skippedFolderCount > 0) {
+				items.push(new DoctorItem(
+					vscode.l10n.t('Additional workspace folders'),
+					vscode.l10n.t('Skipped {0} folders to keep the scan bounded.', this.skippedFolderCount),
+					'info'
+				));
+			}
+			groups.push(new DoctorGroupItem('workspace', vscode.l10n.t('Workspace'), items, this.workspaceChecks));
 		}
-		return items;
+		if (this.toolChecks.length > 0) {
+			groups.push(new DoctorGroupItem('tools', vscode.l10n.t('Tools'), this.toolChecks.map(check => this.createItem(check)), this.toolChecks));
+		}
+		return groups;
 	}
 
-	getTreeItem(element: DoctorItem): vscode.TreeItem {
+	getTreeItem(element: DoctorItem | DoctorGroupItem): vscode.TreeItem {
 		return element;
+	}
+
+	private createItem(check: DoctorCheck): DoctorItem {
+		const label = LOCALIZED_LABELS.get(check.label) ?? check.label;
+		return new DoctorItem(
+			check.folderName ? vscode.l10n.t('{0}: {1}', check.folderName, label) : label,
+			LOCALIZED_DESCRIPTIONS.get(check.description) ?? check.description,
+			check.status
+		);
 	}
 
 	async scanWorkspace(): Promise<void> {
@@ -151,6 +163,16 @@ export class WorkspaceDoctor implements vscode.TreeDataProvider<DoctorItem> {
 	}
 
 	async checkTools(): Promise<void> {
+		if (!vscode.workspace.isTrusted) {
+			this.toolChecks = [{
+				label: vscode.l10n.t('Tool checks'),
+				description: vscode.l10n.t('Unavailable in Restricted Mode. Trust this workspace to run version checks.'),
+				status: 'info'
+			}];
+			this.changeEmitter.fire();
+			return;
+		}
+
 		this.activeOperations++;
 		this.changeEmitter.fire();
 		try {
@@ -208,4 +230,30 @@ class DoctorItem extends vscode.TreeItem {
 		this.iconPath = new vscode.ThemeIcon(status === 'ok' ? 'check' : status === 'warning' ? 'warning' : 'info');
 		this.tooltip = description ? `${label}: ${description}` : label;
 	}
+}
+
+/**
+ * Collapsible group that keeps workspace findings and toolchain findings apart
+ * and shows a one-line summary of each.
+ */
+class DoctorGroupItem extends vscode.TreeItem {
+	constructor(
+		readonly group: 'workspace' | 'tools',
+		label: string,
+		readonly items: readonly DoctorItem[],
+		checks: readonly DoctorCheck[]
+	) {
+		super(label, vscode.TreeItemCollapsibleState.Expanded);
+		this.id = `redCode.doctor.${group}`;
+		this.contextValue = 'redCodeDoctorGroup';
+		this.description = summarizeChecks(checks);
+		this.tooltip = vscode.l10n.t('{0}: {1}', label, this.description);
+	}
+}
+
+function summarizeChecks(checks: readonly DoctorCheck[]): string {
+	const warnings = checks.filter(check => check.status === 'warning').length;
+	return warnings === 0
+		? vscode.l10n.t('{0} checks, no warnings', checks.length)
+		: vscode.l10n.t('{0} checks, {1} with warnings', checks.length, warnings);
 }
