@@ -445,12 +445,18 @@ export function activate(context: vscode.ExtensionContext): void {
 		explorerView.description = project.version ?? undefined;
 		artisanView.description = undefined;
 
-		// Models and schema are read from declarations, so they stay populated in
-		// Restricted Mode and never depend on a database connection.
+		// Models are read from declarations, so they stay populated in Restricted
+		// Mode and never depend on a database connection. The schema prefers the
+		// live database and falls back to the migration declarations.
 		modelsView.message = snapshot.models.length === 0 ? vscode.l10n.t('No Eloquent models found.') : undefined;
 		modelsView.description = vscode.l10n.t('{0} models', String(snapshot.models.length));
-		schemaView.message = snapshot.schema.tables.length === 0 ? vscode.l10n.t('No migrations found.') : undefined;
-		schemaView.description = vscode.l10n.t('{0} tables', String(snapshot.schema.tables.length));
+		const liveSchema = snapshot.schema.source === 'database';
+		schemaView.message = snapshot.schema.tables.length === 0
+			? (liveSchema ? vscode.l10n.t('The database connection has no tables.') : vscode.l10n.t('No migrations found.'))
+			: undefined;
+		schemaView.description = vscode.l10n.t('{0} tables · {1}', String(snapshot.schema.tables.length), liveSchema
+			? snapshot.schema.connection ?? vscode.l10n.t('database')
+			: vscode.l10n.t('migrations'));
 
 		// Components are read from declarations too, so they stay populated in
 		// Restricted Mode and never depend on a database connection.

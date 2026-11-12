@@ -14,6 +14,7 @@ import { parsePhpFile } from './phpSymbols.js';
 import { parseRouteList, RouteEntry } from './routes.js';
 import { readWorkspaceFile, scanProjectFiles } from './scan.js';
 import { componentNameFromPath, extractReferences, isBladePath, viewNameFromPath } from './views.js';
+import { loadDatabaseSchema } from '../schemaLoader.js';
 
 export interface IndexSnapshot {
 	readonly graph: LaravelGraph;
@@ -180,8 +181,8 @@ export class LaravelIndex implements vscode.Disposable {
 			return text ? indexedView(file, text) : undefined;
 		});
 
-		// The schema is read from migration declarations, so the Database view
-		// works without a database connection and in Restricted Mode.
+		// The schema is read from migration declarations first, so the Database
+		// view works without a database connection and in Restricted Mode.
 		const migrationPaths = scan.files.filter(file => /^database\/migrations\/.+\.php$/i.test(file));
 		const migrationResults = await mapLimit(migrationPaths, READ_CONCURRENCY, async file => {
 			const text = await readWorkspaceFile(project.root, file);
@@ -202,7 +203,16 @@ export class LaravelIndex implements vscode.Disposable {
 		const models = linkModelTables(classEntries
 			.map(entry => entry.model)
 			.filter((model): model is IndexedModel => Boolean(model)));
-		const schema = parseMigrations(migrationResults.filter((item): item is MigrationFile => Boolean(item)));
+		const migrationSchema = parseMigrations(migrationResults.filter((item): item is MigrationFile => Boolean(item)));
+
+		// `db:show`/`db:table` is the authoritative column source (the Blueprint
+		// DSL can disagree with what was actually migrated). Migration
+		// declarations remain the fallback when the connection is unreachable,
+		// and like `route:list` this never runs in Restricted Mode.
+		const databaseSchema = vscode.workspace.isTrusted
+			? await loadDatabaseSchema(project, { runner: this.runner, channel: this.channel }, token, migrationSchema)
+			: undefined;
+		const schema = databaseSchema ?? migrationSchema;
 
 		const graph = buildGraph({ routes, classes, views, files: scan.files });
 		this.channel.appendLine(vscode.l10n.t(

@@ -166,5 +166,5 @@ test('a migration without a timestamp keeps a readable name and no effects', () 
 });
 
 test('parsing an empty migration list produces an empty schema', () => {
-	assert.deepEqual(parseMigrations([]), { tables: [], migrationCount: 0, timeline: [] });
+	assert.deepEqual(parseMigrations([]), { tables: [], migrationCount: 0, timeline: [], source: 'migrations' });
 });

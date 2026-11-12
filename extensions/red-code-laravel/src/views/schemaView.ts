@@ -125,9 +125,10 @@ function hasDetails(table: SchemaTable): boolean {
 }
 
 /**
- * Renders the schema read from migrations: tables with their columns, indexes
- * and foreign keys. It needs no database connection, so it works before a
- * migration has ever run and in a trusted or untrusted workspace alike.
+ * Renders the schema as tables with their columns, indexes and foreign keys. It
+ * prefers the live database (`db:show`/`db:table`) and falls back to the
+ * migration declarations, so it still works before a migration has ever run and
+ * in a trusted or untrusted workspace alike.
  */
 export class SchemaTreeProvider implements vscode.TreeDataProvider<SchemaNode> {
 	private readonly changeEmitter = new vscode.EventEmitter<void>();

@@ -62,7 +62,14 @@ export interface DatabaseSchema {
 	readonly migrationCount: number;
 	/** Every migration in execution (file name) order, with its table effects. */
 	readonly timeline: readonly MigrationTimelineEntry[];
+	/** `database` when read from the live connection, `migrations` when parsed. */
+	readonly source: SchemaSource;
+	/** Connection name/driver reported by `db:show`, when the source is `database`. */
+	readonly connection?: string;
+	readonly serverVersion?: string;
 }
+
+export type SchemaSource = 'database' | 'migrations';
 
 export interface MigrationFile {
 	readonly file: string;
@@ -449,6 +456,7 @@ export function parseMigrations(files: readonly MigrationFile[]): DatabaseSchema
 	return {
 		tables: [...tables.values()].sort((left, right) => left.name.localeCompare(right.name)),
 		migrationCount: ordered.length,
-		timeline
+		timeline,
+		source: 'migrations'
 	};
 }
