@@ -1,7 +1,8 @@
 # Red Code changelog
 
 Red Code is a VS Code 1.147 fork. Version numbers keep the upstream `major.minor` and increment the
-patch for each Red Code build, so `1.147.1` is the first Red Code build after upstream `1.147.0`.
+patch for each Red Code build, so `1.147.1` is the first published Red Code build. `1.147.0` was
+built and installed locally but never released, so it has no download.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
 ## [1.147.1] — 2026-11-12
