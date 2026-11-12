@@ -4,6 +4,6 @@ src/**
 out/**
 node_modules/**
 tsconfig.json
-tsconfig.tsbuildinfo
+*.tsbuildinfo
 pnpm-lock.yaml
 esbuild.mts

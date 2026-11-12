@@ -1,15 +1,26 @@
 {
 	"displayName": "Red Code Productivity",
-	"description": "Project bookmarks and read-only development environment checks for Red Code.",
+	"description": "Project bookmarks, deployment sets between commits, and read-only development environment checks for Red Code.",
 	"containerTitle": "Red Code",
 	"bookmarksViewTitle": "Project Bookmarks",
 	"bookmarksViewContextTitle": "Project Bookmarks",
 	"doctorViewTitle": "Workspace Doctor",
 	"doctorViewContextTitle": "Workspace Doctor",
+	"deployViewTitle": "Changed Files",
+	"deployViewContextTitle": "Changed Files Between Commits",
 	"addBookmarkCommand": "Add to Project Bookmarks",
 	"bookmarkActiveFileCommand": "Bookmark Active File",
 	"removeBookmarkCommand": "Remove Bookmark",
 	"refreshBookmarksCommand": "Refresh Bookmarks",
 	"scanWorkspaceCommand": "Scan Workspace",
-	"checkToolsCommand": "Check Installed Tools"
+	"checkToolsCommand": "Check Installed Tools",
+	"selectRangeCommand": "Select Commit Range…",
+	"selectCommitsCommand": "Select Commits…",
+	"exportZipCommand": "Export Deployment ZIP…",
+	"refreshDeployCommand": "Refresh Changed Files",
+	"copyDeployPathsCommand": "Copy Changed File Paths",
+	"copyDeployDeletionsCommand": "Copy Files to Delete",
+	"copyDeployPathCommand": "Copy Path",
+	"openDeployFileCommand": "Open Changed File",
+	"excludePathsDescription": "Changed paths that are never part of a deployment set. `*` matches inside one path segment, `**` matches across segments. Empty list includes everything."
 }

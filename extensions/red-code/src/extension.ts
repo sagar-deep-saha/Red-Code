@@ -5,12 +5,15 @@
 
 import * as vscode from 'vscode';
 import { BookmarkItem, ProjectBookmarks } from './bookmarks.js';
+import { DeploySetView, registerDeployCommands } from './deploy.js';
 import { WorkspaceDoctor } from './doctor.js';
 
 export function activate(context: vscode.ExtensionContext): void {
 	const bookmarks = new ProjectBookmarks(context);
 	const doctor = new WorkspaceDoctor();
-	context.subscriptions.push(bookmarks, doctor);
+	const deploy = new DeploySetView(context);
+	context.subscriptions.push(bookmarks, doctor, deploy);
+	registerDeployCommands(context, deploy);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('redCode.bookmarks.add', async (resource?: vscode.Uri | { readonly resourceUri?: vscode.Uri }) => {

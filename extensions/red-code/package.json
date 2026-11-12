@@ -28,6 +28,11 @@
 		"views": {
 			"redCode": [
 				{
+					"id": "redCode.deploy",
+					"name": "%deployViewTitle%",
+					"contextualTitle": "%deployViewContextTitle%"
+				},
+				{
 					"id": "redCode.bookmarks",
 					"name": "%bookmarksViewTitle%",
 					"contextualTitle": "%bookmarksViewContextTitle%"
@@ -69,12 +74,86 @@
 				"command": "redCode.doctor.checkTools",
 				"title": "%checkToolsCommand%",
 				"category": "Red Code"
+			},
+			{
+				"command": "redCode.deploy.pickRange",
+				"title": "%selectRangeCommand%",
+				"category": "Red Code",
+				"icon": "$(git-compare)"
+			},
+			{
+				"command": "redCode.deploy.pickCommits",
+				"title": "%selectCommitsCommand%",
+				"category": "Red Code",
+				"icon": "$(list-selection)"
+			},
+			{
+				"command": "redCode.deploy.exportZip",
+				"title": "%exportZipCommand%",
+				"category": "Red Code",
+				"icon": "$(archive)"
+			},
+			{
+				"command": "redCode.deploy.refresh",
+				"title": "%refreshDeployCommand%",
+				"category": "Red Code",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "redCode.deploy.copyPaths",
+				"title": "%copyDeployPathsCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.deploy.copyDeletions",
+				"title": "%copyDeployDeletionsCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.deploy.copyPath",
+				"title": "%copyDeployPathCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.deploy.openFile",
+				"title": "%openDeployFileCommand%",
+				"category": "Red Code"
 			}
 		],
+		"configuration": {
+			"title": "Red Code",
+			"properties": {
+				"redCode.deploy.excludePaths": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"vendor/**",
+						"node_modules/**",
+						"storage/**",
+						"bootstrap/cache/**",
+						".git/**",
+						".env",
+						".env.*",
+						"public/hot"
+					],
+					"markdownDescription": "%excludePathsDescription%"
+				}
+			}
+		},
 		"menus": {
 			"commandPalette": [
 				{
 					"command": "redCode.bookmarks.remove",
+					"when": "never"
+				},
+				{
+					"command": "redCode.deploy.copyPath",
+					"when": "never"
+				},
+				{
+					"command": "redCode.deploy.openFile",
 					"when": "never"
 				}
 			],
@@ -85,6 +164,26 @@
 				}
 			],
 			"view/title": [
+				{
+					"command": "redCode.deploy.pickRange",
+					"when": "view == redCode.deploy",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.deploy.pickCommits",
+					"when": "view == redCode.deploy",
+					"group": "navigation@2"
+				},
+				{
+					"command": "redCode.deploy.exportZip",
+					"when": "view == redCode.deploy",
+					"group": "navigation@3"
+				},
+				{
+					"command": "redCode.deploy.refresh",
+					"when": "view == redCode.deploy",
+					"group": "navigation@4"
+				},
 				{
 					"command": "redCode.bookmarks.add",
 					"when": "view == redCode.bookmarks",
@@ -108,6 +207,16 @@
 			],
 			"view/item/context": [
 				{
+					"command": "redCode.deploy.copyPath",
+					"when": "view == redCode.deploy && viewItem == redCodeDeployUpload",
+					"group": "1_copy@1"
+				},
+				{
+					"command": "redCode.deploy.copyPath",
+					"when": "view == redCode.deploy && viewItem == redCodeDeployDelete",
+					"group": "1_copy@1"
+				},
+				{
 					"command": "redCode.bookmarks.remove",
 					"when": "view == redCode.bookmarks && viewItem == redCodeBookmark",
 					"group": "inline"
@@ -118,7 +227,8 @@
 	"scripts": {
 		"compile": "node ./esbuild.mts",
 		"watch": "node ./esbuild.mts --watch",
-		"test": "tsc -p tsconfig.json && node --test out/test/bookmarkModel.test.js out/test/doctorModel.test.js"
+		"test": "tsc -p tsconfig.json && node --test out/test/bookmarkModel.test.js out/test/doctorModel.test.js out/test/deploySet.test.js out/test/zip.test.js",
+		"test:git": "node ./scripts/verify-deploy.mjs"
 	},
 	"devDependencies": {
 		"@types/node": "24.x"
