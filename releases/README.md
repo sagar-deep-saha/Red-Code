@@ -32,7 +32,10 @@ offered when `redCode.updates.includePrerelease` is on.
    ```
 
    The Inno Setup compiler comes from the `innosetup` npm package; nothing has to be installed
-   globally.
+   globally. Two tools must be on `PATH` for a local (non-CI) build: Node 24.22.1 and the Windows
+   SDK `signtool.exe` (`C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64`), because
+   packaging strips Authenticode signatures from bundled binaries before stamping new version
+   information into them.
 
 3. Record the build and generate the feed:
 

@@ -1,2 +1,6 @@
 @anthropic-ai/claude-agent-sdk/vendor/audio-capture/*-darwin/**
 @anthropic-ai/claude-agent-sdk/vendor/audio-capture/*-linux/**
+
+# @teddyzhu/clipboard ships a native module per platform; only the Windows one is loadable.
+@teddyzhu/clipboard/clipboard.darwin-*.node
+@teddyzhu/clipboard/clipboard.linux-*.node

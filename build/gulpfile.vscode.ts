@@ -510,12 +510,26 @@ async function stripAuthenticodeSignature(filePath: string): Promise<void> {
 	});
 }
 
+/** Windows binaries start with the `MZ` DOS header; other platforms' `.node` files do not. */
+async function isPortableExecutable(filePath: string): Promise<boolean> {
+	const handle = await fs.promises.open(filePath, 'r');
+	try {
+		const buffer = Buffer.alloc(2);
+		const { bytesRead } = await handle.read(buffer, 0, 2, 0);
+		return bytesRead === 2 && buffer[0] === 0x4d && buffer[1] === 0x5a;
+	} catch {
+		return false;
+	} finally {
+		await handle.close();
+	}
+}
+
 function patchWin32DependenciesTask(destinationFolderName: string) {
 	const cwd = path.join(path.dirname(root), destinationFolderName);
 
 	return async () => {
 		const versionedResourcesFolder = util.getVersionedResourcesFolder('win32', commit!);
-		const deps = (await Promise.all([
+		const rawDeps = (await Promise.all([
 			glob('**/*.node', { cwd, ignore: 'extensions/node_modules/@parcel/watcher/**' }),
 			glob('**/rg.exe', { cwd }),
 			glob('**/tgrep.exe', { cwd }),
@@ -523,6 +537,14 @@ function patchWin32DependenciesTask(destinationFolderName: string) {
 			// TODO@anthonykim1 Remove once @github/copilot ships OneAuthInterop.dll with complete version information.
 			glob('**/OneAuthInterop.dll', { cwd }),
 		])).flatMap(o => o);
+		// Packages such as @github/copilot ship native modules for every platform.
+		// rcedit only understands PE files, so stamp the Windows ones and leave the
+		// rest untouched.
+		const deps = await Promise.all(rawDeps.map(async dep => ({
+			dep,
+			isPe: await isPortableExecutable(path.join(cwd, dep))
+		})))
+			.then(entries => entries.filter(entry => entry.isPe).map(entry => entry.dep));
 		const packageJson = JSON.parse(await fs.promises.readFile(path.join(cwd, versionedResourcesFolder, 'resources', 'app', 'package.json'), 'utf8'));
 		const product = JSON.parse(await fs.promises.readFile(path.join(cwd, versionedResourcesFolder, 'resources', 'app', 'product.json'), 'utf8'));
 		const baseVersion = packageJson.version.replace(/-.*$/, '');
