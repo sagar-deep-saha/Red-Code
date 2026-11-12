@@ -1,0 +1,226 @@
+{
+	"name": "red-code-laravel",
+	"displayName": "%displayName%",
+	"description": "%description%",
+	"version": "0.1.0",
+	"publisher": "redcode",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.147.0"
+	},
+	"main": "./out/extension.js",
+	"capabilities": {
+		"virtualWorkspaces": false,
+		"untrustedWorkspaces": {
+			"supported": "limited",
+			"description": "%untrustedDescription%"
+		}
+	},
+	"activationEvents": [
+		"onView:redCode.laravel.project",
+		"onView:redCode.laravel.routes",
+		"onView:redCode.laravel.artisan"
+	],
+	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "redCode.laravel",
+					"title": "%containerTitle%",
+					"icon": "media/laravel.svg"
+				}
+			]
+		},
+		"views": {
+			"redCode.laravel": [
+				{
+					"id": "redCode.laravel.project",
+					"name": "%projectViewTitle%"
+				},
+				{
+					"id": "redCode.laravel.routes",
+					"name": "%routesViewTitle%"
+				},
+				{
+					"id": "redCode.laravel.artisan",
+					"name": "%artisanViewTitle%"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "redCode.laravel.showProject",
+				"title": "%showProjectCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.refresh",
+				"title": "%refreshCommand%",
+				"category": "Laravel",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "redCode.laravel.palette",
+				"title": "%paletteCommand%",
+				"category": "Laravel",
+				"icon": "$(terminal)"
+			},
+			{
+				"command": "redCode.laravel.runArtisan",
+				"title": "%runArtisanCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.runArtisanCommand",
+				"title": "%runNamedArtisanCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.inspectClass",
+				"title": "%inspectClassCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.goToRouteAction",
+				"title": "%goToRouteActionCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.copyRouteUri",
+				"title": "%copyRouteUriCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.copyRouteCurl",
+				"title": "%copyRouteCurlCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.openRouteInBrowser",
+				"title": "%openRouteInBrowserCommand%",
+				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.openLocation",
+				"title": "%openLocationCommand%",
+				"category": "Laravel"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "redCode.laravel.palette",
+				"key": "ctrl+alt+l",
+				"mac": "cmd+alt+l",
+				"when": "!terminalFocus"
+			}
+		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "redCode.laravel.runArtisanCommand",
+					"when": "false"
+				},
+				{
+					"command": "redCode.laravel.openLocation",
+					"when": "false"
+				},
+				{
+					"command": "redCode.laravel.goToRouteAction",
+					"when": "false"
+				},
+				{
+					"command": "redCode.laravel.copyRouteUri",
+					"when": "false"
+				},
+				{
+					"command": "redCode.laravel.copyRouteCurl",
+					"when": "false"
+				},
+				{
+					"command": "redCode.laravel.openRouteInBrowser",
+					"when": "false"
+				}
+			],
+			"view/title": [
+				{
+					"command": "redCode.laravel.refresh",
+					"when": "view == redCode.laravel.routes || view == redCode.laravel.project",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.laravel.palette",
+					"when": "view == redCode.laravel.artisan",
+					"group": "navigation@1"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "redCode.laravel.goToRouteAction",
+					"when": "view == redCode.laravel.routes && viewItem == route",
+					"group": "route@1"
+				},
+				{
+					"command": "redCode.laravel.copyRouteUri",
+					"when": "view == redCode.laravel.routes && viewItem == route",
+					"group": "route@2"
+				},
+				{
+					"command": "redCode.laravel.copyRouteCurl",
+					"when": "view == redCode.laravel.routes && viewItem == route",
+					"group": "route@3"
+				},
+				{
+					"command": "redCode.laravel.openRouteInBrowser",
+					"when": "view == redCode.laravel.routes && viewItem == route",
+					"group": "route@4"
+				}
+			],
+			"editor/context": [
+				{
+					"command": "redCode.laravel.inspectClass",
+					"when": "resourceLangId == php",
+					"group": "navigation@9"
+				}
+			]
+		},
+		"configuration": {
+			"title": "Laravel",
+			"properties": {
+				"redCode.laravel.phpPath": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "%phpPathDescription%"
+				},
+				"redCode.laravel.routes.showVendor": {
+					"type": "boolean",
+					"default": false,
+					"description": "%showVendorDescription%"
+				},
+				"redCode.laravel.index.maxFiles": {
+					"type": "number",
+					"default": 20000,
+					"minimum": 1000,
+					"description": "%maxFilesDescription%"
+				},
+				"redCode.laravel.index.autoRefresh": {
+					"type": "boolean",
+					"default": true,
+					"description": "%autoRefreshDescription%"
+				}
+			}
+		},
+		"configurationDefaults": {
+			"files.associations": {
+				"*.blade.php": "html"
+			}
+		}
+	},
+	"scripts": {
+		"compile": "node ./esbuild.mts",
+		"watch": "node ./esbuild.mts --watch",
+		"test": "tsc -p tsconfig.json && node --test \"out/test/*.test.js\""
+	},
+	"devDependencies": {
+		"@types/node": "24.x"
+	}
+}
