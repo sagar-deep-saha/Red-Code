@@ -22,6 +22,7 @@
 		"onView:redCode.laravel.models",
 		"onView:redCode.laravel.schema",
 		"onView:redCode.laravel.env",
+		"onView:redCode.laravel.logs",
 		"onView:redCode.laravel.artisan"
 	],
 	"contributes": {
@@ -55,6 +56,10 @@
 				{
 					"id": "redCode.laravel.env",
 					"name": "%envViewTitle%"
+				},
+				{
+					"id": "redCode.laravel.logs",
+					"name": "%logsViewTitle%"
 				},
 				{
 					"id": "redCode.laravel.artisan",
@@ -137,6 +142,35 @@
 				"title": "%openEnvFileCommand%",
 				"category": "Laravel",
 				"icon": "$(go-to-file)"
+			},
+			{
+				"command": "redCode.laravel.logs.refresh",
+				"title": "%refreshLogsCommand%",
+				"category": "Laravel",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "redCode.laravel.logs.filterLevels",
+				"title": "%filterLogLevelsCommand%",
+				"category": "Laravel",
+				"icon": "$(filter)"
+			},
+			{
+				"command": "redCode.laravel.logs.startTail",
+				"title": "%startLogTailCommand%",
+				"category": "Laravel",
+				"icon": "$(eye)"
+			},
+			{
+				"command": "redCode.laravel.logs.stopTail",
+				"title": "%stopLogTailCommand%",
+				"category": "Laravel",
+				"icon": "$(eye-closed)"
+			},
+			{
+				"command": "redCode.laravel.logs.openEntry",
+				"title": "%openLogEntryCommand%",
+				"category": "Laravel"
 			}
 		],
 		"keybindings": [
@@ -176,6 +210,10 @@
 				{
 					"command": "redCode.laravel.refreshEnv",
 					"when": "false"
+				},
+				{
+					"command": "redCode.laravel.logs.openEntry",
+					"when": "false"
 				}
 			],
 			"view/title": [
@@ -197,6 +235,26 @@
 				{
 					"command": "redCode.laravel.openEnvFile",
 					"when": "view == redCode.laravel.env",
+					"group": "navigation@3"
+				},
+				{
+					"command": "redCode.laravel.logs.refresh",
+					"when": "view == redCode.laravel.logs",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.laravel.logs.filterLevels",
+					"when": "view == redCode.laravel.logs",
+					"group": "navigation@2"
+				},
+				{
+					"command": "redCode.laravel.logs.startTail",
+					"when": "view == redCode.laravel.logs && !redCodeLaravel.logTail",
+					"group": "navigation@3"
+				},
+				{
+					"command": "redCode.laravel.logs.stopTail",
+					"when": "view == redCode.laravel.logs && redCodeLaravel.logTail",
 					"group": "navigation@3"
 				},
 				{
@@ -263,6 +321,13 @@
 					"type": "string",
 					"default": ".env",
 					"markdownDescription": "%envFileDescription%"
+				},
+				"redCode.laravel.logTailMb": {
+					"type": "number",
+					"default": 2,
+					"minimum": 0.1,
+					"maximum": 50,
+					"description": "%logTailMbDescription%"
 				}
 			}
 		},

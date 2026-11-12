@@ -10,8 +10,11 @@ import { ArtisanCatalog, parseArtisanList } from './index/commands.js';
 import { appendMissingKeys } from './index/envModel.js';
 import { LaravelGraph, SourceLocation } from './index/graph.js';
 import { LaravelIndex } from './index/laravelIndex.js';
+import { LOG_LEVELS, LogEntry, UNKNOWN_LEVEL } from './index/logModel.js';
 import { buildCurlCommand, displayUri, requestMethod, RouteEntry, toConcreteUri } from './index/routes.js';
 import { readWorkspaceFile } from './index/scan.js';
+import { LOG_SCHEME, LogDocumentProvider } from './logDocument.js';
+import { listLogFiles, readLogTail } from './logFiles.js';
 import { openLocation, registerLocationCommand } from './locations.js';
 import { registerNavigation } from './navigation.js';
 import { detectLaravelProject, LaravelProject, resolvePhpPath } from './project.js';
@@ -19,12 +22,17 @@ import { parseAboutJson } from './projectModel.js';
 import { ArtisanTreeProvider } from './views/artisanView.js';
 import { LaravelViewContext } from './views/context.js';
 import { EnvTreeProvider, EnvViewDeps } from './views/envView.js';
+import { DEFAULT_LOG_LEVELS, LogsTreeProvider, LogsViewDeps } from './views/logsView.js';
 import { ModelsTreeProvider } from './views/modelsView.js';
 import { ProjectExplorerProvider } from './views/projectExplorer.js';
 import { RoutesTreeProvider } from './views/routesView.js';
 import { SchemaTreeProvider } from './views/schemaView.js';
 
 const REFRESH_DEBOUNCE_MS = 2500;
+
+/** Default log source; newest file by mtime wins. */
+const LOG_PATTERN = 'storage/logs/*.log';
+const LOG_TAIL_DEBOUNCE_MS = 300;
 
 export function activate(context: vscode.ExtensionContext): void {
 	const channel = vscode.window.createOutputChannel('Red Code Laravel');
@@ -247,6 +255,113 @@ export function activate(context: vscode.ExtensionContext): void {
 		await vscode.window.showTextDocument(vscode.Uri.joinPath(current.root, envFileName()));
 	}
 
+	function logTailBytes(): number {
+		const megabytes = vscode.workspace.getConfiguration('redCode.laravel').get<number>('logTailMb', 2);
+		const clamped = Math.min(50, Math.max(0.1, megabytes));
+		return Math.round(clamped * 1024 * 1024);
+	}
+
+	const logDeps: LogsViewDeps = {
+		project: () => project,
+		logPattern: () => LOG_PATTERN,
+		tailBytes: logTailBytes,
+		list: async () => {
+			const current = await resolveProject();
+			return current ? listLogFiles(current.root.fsPath, LOG_PATTERN) : [];
+		},
+		read: async (relativePath, maxBytes) => {
+			const current = await resolveProject();
+			return current ? readLogTail(current.root.fsPath, relativePath, maxBytes) : undefined;
+		}
+	};
+
+	const logsProvider = new LogsTreeProvider(logDeps);
+	const logsView = vscode.window.createTreeView('redCode.laravel.logs', {
+		treeDataProvider: logsProvider
+	});
+	const logDocuments = new LogDocumentProvider();
+
+	async function refreshLogsView(): Promise<void> {
+		logsProvider.refresh();
+		const state = await logsProvider.state();
+		logsView.message = state.message;
+		logsView.description = state.count > 0 ? vscode.l10n.t('{0} entries', String(state.count)) : undefined;
+	}
+
+	let tailEnabled = false;
+	let tailWatcher: vscode.FileSystemWatcher | undefined;
+	let tailSubscriptions: vscode.Disposable[] = [];
+	let logRefreshTimer: NodeJS.Timeout | undefined;
+
+	function scheduleLogRefresh(): void {
+		if (logRefreshTimer) {
+			clearTimeout(logRefreshTimer);
+		}
+		logRefreshTimer = setTimeout(() => {
+			logRefreshTimer = undefined;
+			void refreshLogsView();
+		}, LOG_TAIL_DEBOUNCE_MS);
+	}
+
+	async function setLogTail(enabled: boolean): Promise<void> {
+		if (enabled === tailEnabled) {
+			return;
+		}
+		tailEnabled = enabled;
+		if (enabled && !tailWatcher) {
+			tailWatcher = vscode.workspace.createFileSystemWatcher(`**/${LOG_PATTERN}`);
+			tailSubscriptions = [
+				tailWatcher,
+				tailWatcher.onDidChange(scheduleLogRefresh),
+				tailWatcher.onDidCreate(scheduleLogRefresh),
+				tailWatcher.onDidDelete(scheduleLogRefresh)
+			];
+		} else if (!enabled && tailWatcher) {
+			for (const subscription of tailSubscriptions) {
+				subscription.dispose();
+			}
+			tailSubscriptions = [];
+			tailWatcher = undefined;
+		}
+		await vscode.commands.executeCommand('setContext', 'redCodeLaravel.logTail', enabled);
+		void vscode.window.setStatusBarMessage(
+			enabled ? vscode.l10n.t('Log tail enabled.') : vscode.l10n.t('Log tail disabled.'),
+			3000
+		);
+		await refreshLogsView();
+	}
+
+	async function pickLogLevels(): Promise<void> {
+		const selected = logsProvider.levelsSelected();
+		const allSelected = [...LOG_LEVELS, UNKNOWN_LEVEL].every(level => selected.has(level));
+		const items: vscode.QuickPickItem[] = [
+			{ label: 'ALL', description: vscode.l10n.t('Show every level'), picked: allSelected },
+			...LOG_LEVELS.map(level => ({ label: level, picked: selected.has(level) })),
+			{ label: UNKNOWN_LEVEL, description: vscode.l10n.t('Entries without a header'), picked: selected.has(UNKNOWN_LEVEL) }
+		];
+
+		const picked = await vscode.window.showQuickPick(items, {
+			canPickMany: true,
+			title: vscode.l10n.t('Log Levels'),
+			placeHolder: vscode.l10n.t('Select the levels to show')
+		});
+		if (!picked) {
+			return;
+		}
+
+		const labels = new Set(picked.map(item => item.label));
+		logsProvider.setLevels(labels.has('ALL') ? DEFAULT_LOG_LEVELS : new Set(labels));
+		await refreshLogsView();
+	}
+
+	async function openLogEntry(arg: unknown): Promise<void> {
+		if (!arg || typeof arg !== 'object' || !('entry' in arg)) {
+			return;
+		}
+		const { fileName, entry } = arg as { fileName: string; entry: LogEntry };
+		await vscode.window.showTextDocument(logDocuments.publish(fileName, entry), { preview: true });
+	}
+
 	const artisanDeps: ArtisanDeps = {
 		runner,
 		channel,
@@ -450,7 +565,10 @@ export function activate(context: vscode.ExtensionContext): void {
 		modelsView,
 		schemaView,
 		envView,
+		logsView,
 		artisanView,
+		logDocuments,
+		vscode.workspace.registerTextDocumentContentProvider(LOG_SCHEME, logDocuments),
 		registerLocationCommand(),
 		vscode.commands.registerCommand('redCode.laravel.showProject', () => showProjectInformation(runner, resolveProject)),
 		vscode.commands.registerCommand('redCode.laravel.refresh', async () => {
@@ -460,6 +578,11 @@ export function activate(context: vscode.ExtensionContext): void {
 		vscode.commands.registerCommand('redCode.laravel.refreshEnv', () => refreshEnvView()),
 		vscode.commands.registerCommand('redCode.laravel.addMissingEnvKeys', () => addMissingEnvKeys()),
 		vscode.commands.registerCommand('redCode.laravel.openEnvFile', () => openEnvFile()),
+		vscode.commands.registerCommand('redCode.laravel.logs.refresh', () => refreshLogsView()),
+		vscode.commands.registerCommand('redCode.laravel.logs.filterLevels', () => pickLogLevels()),
+		vscode.commands.registerCommand('redCode.laravel.logs.startTail', () => setLogTail(true)),
+		vscode.commands.registerCommand('redCode.laravel.logs.stopTail', () => setLogTail(false)),
+		vscode.commands.registerCommand('redCode.laravel.logs.openEntry', (arg: unknown) => openLogEntry(arg)),
 		vscode.commands.registerCommand('redCode.laravel.palette', async () => {
 			await resolveProject();
 			await showArtisanPalette(artisanDeps);
@@ -517,6 +640,9 @@ export function activate(context: vscode.ExtensionContext): void {
 			if (event.affectsConfiguration('redCode.laravel.envFile')) {
 				await refreshEnvView();
 			}
+			if (event.affectsConfiguration('redCode.laravel.logTailMb')) {
+				await refreshLogsView();
+			}
 			if (event.affectsConfiguration('redCode.laravel.index')) {
 				await ensureIndex(true);
 			}
@@ -528,12 +654,14 @@ export function activate(context: vscode.ExtensionContext): void {
 			await resolveProject(true);
 			updateViewState();
 			await refreshEnvView();
+			await refreshLogsView();
 		})
 	);
 
 	void resolveProject().then(async () => {
 		updateViewState();
 		await refreshEnvView();
+		await refreshLogsView();
 	});
 
 	context.subscriptions.push({
@@ -541,6 +669,10 @@ export function activate(context: vscode.ExtensionContext): void {
 			if (refreshTimer) {
 				clearTimeout(refreshTimer);
 				refreshTimer = undefined;
+			}
+			if (logRefreshTimer) {
+				clearTimeout(logRefreshTimer);
+				logRefreshTimer = undefined;
 			}
 		}
 	});

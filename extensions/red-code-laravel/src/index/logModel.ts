@@ -12,6 +12,28 @@ const HEADER = /^\[(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})(?:\.\d+)?\]\s+([A-Za
 export const UNKNOWN_LEVEL = 'UNKNOWN';
 export const MAX_MESSAGE_LENGTH = 200;
 
+/** Levels offered by the filter, in descending severity. */
+export const LOG_LEVELS = ['EMERGENCY', 'ALERT', 'CRITICAL', 'ERROR', 'WARNING', 'NOTICE', 'INFO', 'DEBUG'] as const;
+
+export interface LogFile {
+	/** Workspace-relative path using `/`. */
+	readonly path: string;
+	readonly mtime: number;
+}
+
+export interface LogTail {
+	readonly text: string;
+	/** The text is a byte tail, so it starts mid-entry. */
+	readonly sliced: boolean;
+}
+
+export interface LogPattern {
+	readonly directory: string;
+	readonly match: string;
+	/** The name is a literal file rather than a `*.ext` glob. */
+	readonly exact: boolean;
+}
+
 export interface LogEntry {
 	readonly timestamp: string;
 	readonly environment: string;
@@ -99,4 +121,36 @@ function unknownEntry(lines: readonly string[], lineIndex: number): LogEntry {
 		detail,
 		lineIndex
 	};
+}
+
+/** Keeps only the entries whose level the user selected. */
+export function filterByLevel(entries: readonly LogEntry[], levels: ReadonlySet<string>): LogEntry[] {
+	return entries.filter(entry => levels.has(entry.level));
+}
+
+/**
+ * Splits a log glob such as `storage/logs/*.log` into the directory to list and
+ * the name suffix to match. A pattern without `*` names one exact file.
+ */
+export function parseLogPattern(pattern: string): LogPattern {
+	const normalized = pattern.replace(/\\/g, '/').replace(/^\.\//, '');
+	const slash = normalized.lastIndexOf('/');
+	const directory = slash >= 0 ? normalized.slice(0, slash) : '';
+	const name = slash >= 0 ? normalized.slice(slash + 1) : normalized;
+	const star = name.indexOf('*');
+	if (star < 0) {
+		return { directory, match: name, exact: true };
+	}
+	return { directory, match: name.slice(star + 1), exact: false };
+}
+
+/** The most recently modified log file, which the view selects by default. */
+export function pickNewestLog(files: readonly LogFile[]): LogFile | undefined {
+	let newest: LogFile | undefined;
+	for (const file of files) {
+		if (!newest || file.mtime > newest.mtime) {
+			newest = file;
+		}
+	}
+	return newest;
 }

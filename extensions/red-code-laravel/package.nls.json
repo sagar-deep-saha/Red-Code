@@ -8,6 +8,7 @@
 	"modelsViewTitle": "Models",
 	"schemaViewTitle": "Database",
 	"envViewTitle": "Environment",
+	"logsViewTitle": "Logs",
 	"artisanViewTitle": "Artisan",
 	"showProjectCommand": "Show Project Information",
 	"refreshCommand": "Refresh Index",
@@ -23,9 +24,15 @@
 	"refreshEnvCommand": "Refresh Environment",
 	"addMissingEnvKeysCommand": "Add Missing Keys…",
 	"openEnvFileCommand": "Open .env",
+	"refreshLogsCommand": "Refresh Logs",
+	"filterLogLevelsCommand": "Level Filter",
+	"startLogTailCommand": "Start Tailing Log",
+	"stopLogTailCommand": "Stop Tailing Log",
+	"openLogEntryCommand": "Open Log Entry",
 	"phpPathDescription": "Absolute path to `php.exe`. Leave empty to detect Herd's active PHP or `php.exe` on PATH. Batch files are not accepted.",
 	"showVendorDescription": "Show routes registered by installed packages in the Routes view.",
 	"maxFilesDescription": "Maximum number of project files scanned for the Laravel index. Larger projects stop scanning at this limit instead of degrading the editor.",
 	"autoRefreshDescription": "Rebuild the Laravel index a few seconds after PHP, Blade, composer or .env files change.",
-	"envFileDescription": "Env file compared against `<file>.example`. Only key names are read; values are never shown or required."
+	"envFileDescription": "Env file compared against `<file>.example`. Only key names are read; values are never shown or required.",
+	"logTailMbDescription": "How much of the end of the newest log file (`storage/logs/*.log`) the Logs view reads, in megabytes (0.1–50). Only this window is loaded, so a huge log stays responsive."
 }
