@@ -48,6 +48,16 @@ offered when `redCode.updates.includePrerelease` is on.
    This hashes the installer, appends to `releases/versions.json`, writes
    `releases/redcode-updates.json` and copies `CHANGELOG.md` into the updater extension.
 
+   If the repository lives under a deep path, Inno Setup cannot stat bundled files
+   whose full path passes 260 characters (Copilot's nested `node_modules` does this).
+   Point the setup task at a short-path junction instead of moving the tree:
+
+   ```powershell
+   cmd /c mklink /J C:\rcapp "..\VSCode-win32-x64"
+   $env:VSCODE_SETUP_SOURCE_DIR = 'C:\rcapp'
+   corepack pnpm@12.16.0 run gulp vscode-win32-x64-user-setup
+   ```
+
 4. Publish the GitHub release and attach both files:
 
    ```powershell

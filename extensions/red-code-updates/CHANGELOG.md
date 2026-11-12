@@ -1,10 +1,11 @@
 # Red Code changelog
 
 Red Code is a VS Code 1.147 fork. Version numbers keep the upstream `major.minor` and increment the
-patch for each Red Code build, so `1.147.1` is the first Red Code build after upstream `1.147.0`.
+patch for each Red Code build, so `1.147.1` is the first published Red Code build. `1.147.0` was
+built and installed locally but never released, so it has no download.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
-## [1.147.1] — 2026-11-11
+## [1.147.1] — 2026-11-12
 
 ### Laravel (S0 + S1)
 
@@ -35,6 +36,19 @@ patch for each Red Code build, so `1.147.1` is the first Red Code build after up
   SHA-256 and offers to install it. A status bar button shows the running version and turns into an
   update button when a newer build exists.
 - **Version History** reads the bundled changelog plus every published release.
+
+### Changed files between commits
+
+- New **Changed Files** view: builds the deduplicated set of files that moves a server from one commit to another, or across any selection of commits.
+- Shows uploads with their status (added, modified, renamed) and a separate list of paths to delete, including the old side of renames.
+- **Export Deployment ZIP** writes the newest version of each changed file, read from the commit rather than the working tree, with a `RED-CODE-DEPLOY.txt` manifest.
+- Laravel-safe defaults exclude `vendor`, `node_modules`, `storage`, `bootstrap/cache` and `.env`; paths are configurable in `redCode.deploy.excludePaths`.
+
+### Fixed
+
+- The **Laravel** container used a dotted id, which VS Code rejects, so its three views were moved
+  into Explorer and the icon never appeared. The container is now `redCodeLaravel`; view ids are
+  unchanged.
 
 ### Earlier work included in this build
 

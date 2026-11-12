@@ -67,7 +67,11 @@ function buildWin32Setup(arch: string, target: string): task.CallbackTask {
 		const x64AppId = target === 'system' ? product.win32x64AppId : product.win32x64UserAppId;
 		const arm64AppId = target === 'system' ? product.win32arm64AppId : product.win32arm64UserAppId;
 
-		const sourcePath = buildPath(arch);
+		// Inno Setup cannot stat files whose full path exceeds the Windows limit,
+		// and a checkout under a deep directory can push bundled node_modules over
+		// it. VSCODE_SETUP_SOURCE_DIR lets the installer be built from a short-path
+		// junction onto the same tree.
+		const sourcePath = process.env['VSCODE_SETUP_SOURCE_DIR'] ?? buildPath(arch);
 		const outputPath = setupDir(arch, target);
 		fs.mkdirSync(outputPath, { recursive: true });
 

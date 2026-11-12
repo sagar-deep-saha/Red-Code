@@ -44,6 +44,12 @@ built and installed locally but never released, so it has no download.
 - **Export Deployment ZIP** writes the newest version of each changed file, read from the commit rather than the working tree, with a `RED-CODE-DEPLOY.txt` manifest.
 - Laravel-safe defaults exclude `vendor`, `node_modules`, `storage`, `bootstrap/cache` and `.env`; paths are configurable in `redCode.deploy.excludePaths`.
 
+### Fixed
+
+- The **Laravel** container used a dotted id, which VS Code rejects, so its three views were moved
+  into Explorer and the icon never appeared. The container is now `redCodeLaravel`; view ids are
+  unchanged.
+
 ### Earlier work included in this build
 
 - `Red` dark theme and `Red Light`.
