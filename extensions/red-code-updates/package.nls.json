@@ -1,0 +1,14 @@
+{
+	"displayName": "Red Code Updates",
+	"description": "Checks for new Red Code builds, downloads the installer, verifies its SHA-256 and keeps a local version history.",
+	"checkCommand": "Check for Updates",
+	"historyCommand": "Version History",
+	"releasePageCommand": "Open Release Page",
+	"statusCommand": "Show Update Status",
+	"repositoryDescription": "GitHub repository (`owner/name`) that publishes Red Code releases. Releases must contain `RedCode-Setup.exe` and, preferably, a `redcode-updates.json` manifest with the installer SHA-256.",
+	"feedUrlDescription": "HTTPS URL of a custom update feed. When set, it takes precedence over the GitHub repository.",
+	"checkOnStartupDescription": "Check for updates once after startup. The result is cached for six hours; checks never block the editor.",
+	"prereleaseDescription": "Also offer GitHub releases marked as pre-release.",
+	"downloadDirectoryDescription": "Where installers are downloaded. Empty uses the system temporary directory.",
+	"installArgumentsDescription": "Arguments passed to the Inno Setup installer. The default installs silently, does not restart Windows and does not launch Red Code afterwards."
+}

@@ -1,0 +1,95 @@
+{
+	"name": "red-code-updates",
+	"displayName": "%displayName%",
+	"description": "%description%",
+	"version": "1.0.0",
+	"publisher": "redcode",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.147.0"
+	},
+	"main": "./out/extension.js",
+	"capabilities": {
+		"virtualWorkspaces": true,
+		"untrustedWorkspaces": {
+			"supported": true
+		}
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "redCode.updates.check",
+				"title": "%checkCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.updates.versionHistory",
+				"title": "%historyCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.updates.openReleasePage",
+				"title": "%releasePageCommand%",
+				"category": "Red Code"
+			},
+			{
+				"command": "redCode.updates.showStatus",
+				"title": "%statusCommand%",
+				"category": "Red Code"
+			}
+		],
+		"configuration": {
+			"title": "Red Code Updates",
+			"properties": {
+				"redCode.updates.repository": {
+					"type": "string",
+					"default": "sagar-deep-saha/Red-Code",
+					"description": "%repositoryDescription%"
+				},
+				"redCode.updates.feedUrl": {
+					"type": "string",
+					"default": "",
+					"description": "%feedUrlDescription%"
+				},
+				"redCode.updates.checkOnStartup": {
+					"type": "boolean",
+					"default": true,
+					"description": "%checkOnStartupDescription%"
+				},
+				"redCode.updates.includePrerelease": {
+					"type": "boolean",
+					"default": false,
+					"description": "%prereleaseDescription%"
+				},
+				"redCode.updates.downloadDirectory": {
+					"type": "string",
+					"default": "",
+					"description": "%downloadDirectoryDescription%"
+				},
+				"redCode.updates.installArguments": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"/SILENT",
+						"/NORESTART",
+						"/MERGETASKS=!runcode"
+					],
+					"description": "%installArgumentsDescription%"
+				}
+			}
+		}
+	},
+	"scripts": {
+		"compile": "node ./esbuild.mts",
+		"watch": "node ./esbuild.mts --watch",
+		"test": "tsc -p tsconfig.json && node --test \"out/test/*.test.js\""
+	},
+	"devDependencies": {
+		"@types/node": "24.x"
+	}
+}
