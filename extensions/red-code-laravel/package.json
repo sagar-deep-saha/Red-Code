@@ -19,6 +19,9 @@
 	"activationEvents": [
 		"onView:redCode.laravel.project",
 		"onView:redCode.laravel.routes",
+		"onView:redCode.laravel.models",
+		"onView:redCode.laravel.schema",
+		"onView:redCode.laravel.env",
 		"onView:redCode.laravel.artisan"
 	],
 	"contributes": {
@@ -40,6 +43,18 @@
 				{
 					"id": "redCode.laravel.routes",
 					"name": "%routesViewTitle%"
+				},
+				{
+					"id": "redCode.laravel.models",
+					"name": "%modelsViewTitle%"
+				},
+				{
+					"id": "redCode.laravel.schema",
+					"name": "%schemaViewTitle%"
+				},
+				{
+					"id": "redCode.laravel.env",
+					"name": "%envViewTitle%"
 				},
 				{
 					"id": "redCode.laravel.artisan",
@@ -104,6 +119,24 @@
 				"command": "redCode.laravel.openLocation",
 				"title": "%openLocationCommand%",
 				"category": "Laravel"
+			},
+			{
+				"command": "redCode.laravel.refreshEnv",
+				"title": "%refreshEnvCommand%",
+				"category": "Laravel",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "redCode.laravel.addMissingEnvKeys",
+				"title": "%addMissingEnvKeysCommand%",
+				"category": "Laravel",
+				"icon": "$(add)"
+			},
+			{
+				"command": "redCode.laravel.openEnvFile",
+				"title": "%openEnvFileCommand%",
+				"category": "Laravel",
+				"icon": "$(go-to-file)"
 			}
 		],
 		"keybindings": [
@@ -139,13 +172,32 @@
 				{
 					"command": "redCode.laravel.openRouteInBrowser",
 					"when": "false"
+				},
+				{
+					"command": "redCode.laravel.refreshEnv",
+					"when": "false"
 				}
 			],
 			"view/title": [
 				{
 					"command": "redCode.laravel.refresh",
-					"when": "view == redCode.laravel.routes || view == redCode.laravel.project",
+					"when": "view == redCode.laravel.routes || view == redCode.laravel.project || view == redCode.laravel.models || view == redCode.laravel.schema",
 					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.laravel.refreshEnv",
+					"when": "view == redCode.laravel.env",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.laravel.addMissingEnvKeys",
+					"when": "view == redCode.laravel.env",
+					"group": "navigation@2"
+				},
+				{
+					"command": "redCode.laravel.openEnvFile",
+					"when": "view == redCode.laravel.env",
+					"group": "navigation@3"
 				},
 				{
 					"command": "redCode.laravel.palette",
@@ -206,6 +258,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "%autoRefreshDescription%"
+				},
+				"redCode.laravel.envFile": {
+					"type": "string",
+					"default": ".env",
+					"markdownDescription": "%envFileDescription%"
 				}
 			}
 		},

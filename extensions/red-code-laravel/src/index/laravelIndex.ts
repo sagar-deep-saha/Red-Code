@@ -8,6 +8,8 @@ import { ArtisanRunner } from '../artisan.js';
 import { LaravelProject } from '../project.js';
 import { normalizeBaseUrl, parseEnvValue } from './env.js';
 import { buildGraph, IndexedClass, IndexedView, LaravelGraph } from './graph.js';
+import { DatabaseSchema, MigrationFile, parseMigrations } from './migrations.js';
+import { IndexedModel, indexedModel, linkModelTables } from './models.js';
 import { parsePhpFile } from './phpSymbols.js';
 import { parseRouteList, RouteEntry } from './routes.js';
 import { readWorkspaceFile, scanProjectFiles } from './scan.js';
@@ -15,6 +17,8 @@ import { componentNameFromPath, extractReferences, isBladePath, viewNameFromPath
 
 export interface IndexSnapshot {
 	readonly graph: LaravelGraph;
+	readonly models: readonly IndexedModel[];
+	readonly schema: DatabaseSchema;
 	readonly truncated: boolean;
 	readonly fileCount: number;
 	readonly appUrl: string;
@@ -94,6 +98,14 @@ export class LaravelIndex implements vscode.Disposable {
 		return this.snapshotValue?.graph;
 	}
 
+	get models(): readonly IndexedModel[] | undefined {
+		return this.snapshotValue?.models;
+	}
+
+	get schema(): DatabaseSchema | undefined {
+		return this.snapshotValue?.schema;
+	}
+
 	get appUrl(): string {
 		return this.snapshotValue?.appUrl ?? normalizeBaseUrl(undefined);
 	}
@@ -154,11 +166,26 @@ export class LaravelIndex implements vscode.Disposable {
 
 		const classResults = await mapLimit(phpFiles, READ_CONCURRENCY, async file => {
 			const text = await readWorkspaceFile(project.root, file);
-			return text ? indexedClass(file, text) : undefined;
+			if (!text) {
+				return undefined;
+			}
+			const cls = indexedClass(file, text);
+			if (!cls) {
+				return undefined;
+			}
+			return { cls, model: indexedModel(file, text, cls) };
 		});
 		const viewResults = await mapLimit(bladeFiles, READ_CONCURRENCY, async file => {
 			const text = await readWorkspaceFile(project.root, file);
 			return text ? indexedView(file, text) : undefined;
+		});
+
+		// The schema is read from migration declarations, so the Database view
+		// works without a database connection and in Restricted Mode.
+		const migrationPaths = scan.files.filter(file => /^database\/migrations\/.+\.php$/i.test(file));
+		const migrationResults = await mapLimit(migrationPaths, READ_CONCURRENCY, async file => {
+			const text = await readWorkspaceFile(project.root, file);
+			return text ? { file, text } : undefined;
 		});
 
 		let appUrl = normalizeBaseUrl(undefined);
@@ -169,17 +196,25 @@ export class LaravelIndex implements vscode.Disposable {
 			}
 		}
 
-		const classes = classResults.filter((item): item is IndexedClass => Boolean(item));
+		const classEntries = classResults.filter((item): item is { cls: IndexedClass; model: IndexedModel | undefined } => Boolean(item));
+		const classes = classEntries.map(entry => entry.cls);
 		const views = viewResults.filter((item): item is IndexedView => Boolean(item));
+		const models = linkModelTables(classEntries
+			.map(entry => entry.model)
+			.filter((model): model is IndexedModel => Boolean(model)));
+		const schema = parseMigrations(migrationResults.filter((item): item is MigrationFile => Boolean(item)));
 
 		const graph = buildGraph({ routes, classes, views, files: scan.files });
 		this.channel.appendLine(vscode.l10n.t(
-			'Indexed {0} files in {1} ms: {2} routes, {3} classes, {4} views.',
-			scan.files.length, Date.now() - startedAt, routes.length, classes.length, views.length
+			'Indexed {0} files in {1} ms: {2} routes, {3} classes, {4} views, {5} models, {6} tables.',
+			scan.files.length, Date.now() - startedAt, routes.length, classes.length, views.length,
+			models.length, schema.tables.length
 		));
 
 		return {
 			graph,
+			models,
+			schema,
 			truncated: scan.truncated,
 			fileCount: scan.files.length,
 			appUrl,

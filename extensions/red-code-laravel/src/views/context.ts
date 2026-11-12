@@ -4,6 +4,8 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { LaravelGraph, SourceLocation } from '../index/graph.js';
+import { DatabaseSchema } from '../index/migrations.js';
+import { IndexedModel } from '../index/models.js';
 import { LaravelProject } from '../project.js';
 
 /**
@@ -13,6 +15,8 @@ import { LaravelProject } from '../project.js';
  */
 export interface LaravelViewContext {
 	graph(): LaravelGraph | undefined;
+	models(): readonly IndexedModel[] | undefined;
+	schema(): DatabaseSchema | undefined;
 	project(): LaravelProject | undefined;
 	ensureIndex(): Promise<LaravelGraph | undefined>;
 	refreshIndex(): Promise<void>;

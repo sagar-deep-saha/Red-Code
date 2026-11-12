@@ -5,6 +5,9 @@
 	"containerTitle": "Laravel",
 	"projectViewTitle": "Project",
 	"routesViewTitle": "Routes",
+	"modelsViewTitle": "Models",
+	"schemaViewTitle": "Database",
+	"envViewTitle": "Environment",
 	"artisanViewTitle": "Artisan",
 	"showProjectCommand": "Show Project Information",
 	"refreshCommand": "Refresh Index",
@@ -17,8 +20,12 @@
 	"copyRouteCurlCommand": "Copy cURL",
 	"openRouteInBrowserCommand": "Open Route in Browser",
 	"openLocationCommand": "Open Location",
+	"refreshEnvCommand": "Refresh Environment",
+	"addMissingEnvKeysCommand": "Add Missing Keys…",
+	"openEnvFileCommand": "Open .env",
 	"phpPathDescription": "Absolute path to `php.exe`. Leave empty to detect Herd's active PHP or `php.exe` on PATH. Batch files are not accepted.",
 	"showVendorDescription": "Show routes registered by installed packages in the Routes view.",
 	"maxFilesDescription": "Maximum number of project files scanned for the Laravel index. Larger projects stop scanning at this limit instead of degrading the editor.",
-	"autoRefreshDescription": "Rebuild the Laravel index a few seconds after PHP, Blade, composer or .env files change."
+	"autoRefreshDescription": "Rebuild the Laravel index a few seconds after PHP, Blade, composer or .env files change.",
+	"envFileDescription": "Env file compared against `<file>.example`. Only key names are read; values are never shown or required."
 }

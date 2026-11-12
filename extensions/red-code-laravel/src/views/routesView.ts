@@ -62,7 +62,7 @@ export class RouteDetailNode extends vscode.TreeItem {
 	}
 }
 
-function commandFor(location: SourceLocation, context: LaravelViewContext): vscode.Command {
+export function commandFor(location: SourceLocation, context: LaravelViewContext): vscode.Command {
 	const project = context.project();
 	const absolute = /^(?:[A-Za-z]:[\\/]|[\\/])/.test(location.file);
 	const uri = absolute

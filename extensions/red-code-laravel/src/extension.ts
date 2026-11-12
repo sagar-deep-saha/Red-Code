@@ -7,17 +7,22 @@ import * as vscode from 'vscode';
 import { ArtisanRunner } from './artisan.js';
 import { ArtisanDeps, runNamedArtisanCommand, showArtisanPalette } from './artisanCommands.js';
 import { ArtisanCatalog, parseArtisanList } from './index/commands.js';
+import { appendMissingKeys } from './index/envModel.js';
 import { LaravelGraph, SourceLocation } from './index/graph.js';
 import { LaravelIndex } from './index/laravelIndex.js';
 import { buildCurlCommand, displayUri, requestMethod, RouteEntry, toConcreteUri } from './index/routes.js';
+import { readWorkspaceFile } from './index/scan.js';
 import { openLocation, registerLocationCommand } from './locations.js';
 import { registerNavigation } from './navigation.js';
 import { detectLaravelProject, LaravelProject, resolvePhpPath } from './project.js';
 import { parseAboutJson } from './projectModel.js';
 import { ArtisanTreeProvider } from './views/artisanView.js';
 import { LaravelViewContext } from './views/context.js';
+import { EnvTreeProvider, EnvViewDeps } from './views/envView.js';
+import { ModelsTreeProvider } from './views/modelsView.js';
 import { ProjectExplorerProvider } from './views/projectExplorer.js';
 import { RoutesTreeProvider } from './views/routesView.js';
+import { SchemaTreeProvider } from './views/schemaView.js';
 
 const REFRESH_DEBOUNCE_MS = 2500;
 
@@ -123,6 +128,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	const viewContext: LaravelViewContext = {
 		graph: () => index.graph,
+		models: () => index.models,
+		schema: () => index.schema,
 		project: () => project,
 		ensureIndex: () => ensureIndex(),
 		refreshIndex: async () => {
@@ -158,6 +165,88 @@ export function activate(context: vscode.ExtensionContext): void {
 		showCollapseAll: true
 	});
 
+	const modelsProvider = new ModelsTreeProvider(viewContext);
+	const modelsView = vscode.window.createTreeView('redCode.laravel.models', {
+		treeDataProvider: modelsProvider,
+		showCollapseAll: true
+	});
+
+	const schemaProvider = new SchemaTreeProvider(viewContext);
+	const schemaView = vscode.window.createTreeView('redCode.laravel.schema', {
+		treeDataProvider: schemaProvider,
+		showCollapseAll: true
+	});
+
+	function envFileName(): string {
+		const configured = vscode.workspace.getConfiguration('redCode.laravel').get<string>('envFile', '.env').trim();
+		return configured || '.env';
+	}
+
+	const envDeps: EnvViewDeps = {
+		project: () => project,
+		envFileName,
+		read: async relativePath => {
+			const current = await resolveProject();
+			return current ? readWorkspaceFile(current.root, relativePath) : undefined;
+		}
+	};
+
+	const envProvider = new EnvTreeProvider(envDeps);
+	const envView = vscode.window.createTreeView('redCode.laravel.env', {
+		treeDataProvider: envProvider
+	});
+
+	async function refreshEnvView(): Promise<void> {
+		envProvider.refresh();
+		envView.message = await envProvider.message();
+	}
+
+	async function addMissingEnvKeys(): Promise<void> {
+		const current = await resolveProject();
+		if (!current) {
+			void vscode.window.showWarningMessage(vscode.l10n.t('Open a Laravel project folder to inspect it.'));
+			return;
+		}
+
+		const file = envFileName();
+		const keys = await envProvider.missingKeys();
+		if (keys.length === 0) {
+			void vscode.window.showInformationMessage(
+				vscode.l10n.t('{0} already declares every key from {1}.', file, `${file}.example`)
+			);
+			return;
+		}
+
+		const confirmed = await vscode.window.showWarningMessage(
+			vscode.l10n.t('Add {0} missing keys to {1}?', String(keys.length), file),
+			{ modal: true, detail: keys.join('\n') },
+			vscode.l10n.t('Add Keys')
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		const uri = vscode.Uri.joinPath(current.root, file);
+		let existing = '';
+		try {
+			existing = new TextDecoder('utf-8').decode(await vscode.workspace.fs.readFile(uri));
+		} catch {
+			existing = '';
+		}
+		await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(appendMissingKeys(existing, keys)));
+		channel.appendLine(vscode.l10n.t('Added {0} empty keys to {1}.', String(keys.length), file));
+		await refreshEnvView();
+	}
+
+	async function openEnvFile(): Promise<void> {
+		const current = await resolveProject();
+		if (!current) {
+			void vscode.window.showWarningMessage(vscode.l10n.t('Open a Laravel project folder to inspect it.'));
+			return;
+		}
+		await vscode.window.showTextDocument(vscode.Uri.joinPath(current.root, envFileName()));
+	}
+
 	const artisanDeps: ArtisanDeps = {
 		runner,
 		channel,
@@ -178,9 +267,13 @@ export function activate(context: vscode.ExtensionContext): void {
 		if (!project) {
 			routesView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
 			explorerView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
+			modelsView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
+			schemaView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
 			artisanView.message = vscode.l10n.t('No Laravel project detected in this workspace.');
 			routesView.description = undefined;
 			explorerView.description = undefined;
+			modelsView.description = undefined;
+			schemaView.description = undefined;
 			artisanView.description = undefined;
 			return;
 		}
@@ -188,6 +281,8 @@ export function activate(context: vscode.ExtensionContext): void {
 		if (!snapshot) {
 			routesView.message = vscode.l10n.t('Loading Laravel index…');
 			explorerView.message = vscode.l10n.t('Loading Laravel index…');
+			modelsView.message = vscode.l10n.t('Loading Laravel index…');
+			schemaView.message = vscode.l10n.t('Loading Laravel index…');
 			artisanView.message = undefined;
 			return;
 		}
@@ -206,6 +301,13 @@ export function activate(context: vscode.ExtensionContext): void {
 			: undefined;
 		explorerView.description = project.version ?? undefined;
 		artisanView.description = undefined;
+
+		// Models and schema are read from declarations, so they stay populated in
+		// Restricted Mode and never depend on a database connection.
+		modelsView.message = snapshot.models.length === 0 ? vscode.l10n.t('No Eloquent models found.') : undefined;
+		modelsView.description = vscode.l10n.t('{0} models', String(snapshot.models.length));
+		schemaView.message = snapshot.schema.tables.length === 0 ? vscode.l10n.t('No migrations found.') : undefined;
+		schemaView.description = vscode.l10n.t('{0} tables', String(snapshot.schema.tables.length));
 	}
 
 	function currentRoute(arg: unknown): RouteEntry | undefined {
@@ -297,6 +399,8 @@ export function activate(context: vscode.ExtensionContext): void {
 	const indexSubscription = index.onDidChange(() => {
 		routesProvider.refresh();
 		explorerProvider.refresh();
+		modelsProvider.refresh();
+		schemaProvider.refresh();
 		updateViewState();
 	});
 
@@ -343,6 +447,9 @@ export function activate(context: vscode.ExtensionContext): void {
 		indexSubscription,
 		routesView,
 		explorerView,
+		modelsView,
+		schemaView,
+		envView,
 		artisanView,
 		registerLocationCommand(),
 		vscode.commands.registerCommand('redCode.laravel.showProject', () => showProjectInformation(runner, resolveProject)),
@@ -350,6 +457,9 @@ export function activate(context: vscode.ExtensionContext): void {
 			await viewContext.refreshIndex();
 			updateViewState();
 		}),
+		vscode.commands.registerCommand('redCode.laravel.refreshEnv', () => refreshEnvView()),
+		vscode.commands.registerCommand('redCode.laravel.addMissingEnvKeys', () => addMissingEnvKeys()),
+		vscode.commands.registerCommand('redCode.laravel.openEnvFile', () => openEnvFile()),
 		vscode.commands.registerCommand('redCode.laravel.palette', async () => {
 			await resolveProject();
 			await showArtisanPalette(artisanDeps);
@@ -404,6 +514,9 @@ export function activate(context: vscode.ExtensionContext): void {
 			if (event.affectsConfiguration('redCode.laravel.routes.showVendor')) {
 				routesProvider.refresh();
 			}
+			if (event.affectsConfiguration('redCode.laravel.envFile')) {
+				await refreshEnvView();
+			}
 			if (event.affectsConfiguration('redCode.laravel.index')) {
 				await ensureIndex(true);
 			}
@@ -414,10 +527,14 @@ export function activate(context: vscode.ExtensionContext): void {
 			index.invalidate();
 			await resolveProject(true);
 			updateViewState();
+			await refreshEnvView();
 		})
 	);
 
-	void resolveProject().then(() => updateViewState());
+	void resolveProject().then(async () => {
+		updateViewState();
+		await refreshEnvView();
+	});
 
 	context.subscriptions.push({
 		dispose: () => {
