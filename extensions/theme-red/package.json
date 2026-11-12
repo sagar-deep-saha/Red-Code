@@ -21,7 +21,7 @@
 				"id": "Red Light",
 				"label": "%lightThemeLabel%",
 				"uiTheme": "vs",
-				"path": "./themes/Red Light-color-theme.json"
+				"path": "./themes/Red-Light-color-theme.json"
 			}
 		],
 		"configurationDefaults": {
