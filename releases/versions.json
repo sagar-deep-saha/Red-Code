@@ -1,8 +1,20 @@
 {
 	"schemaVersion": 1,
 	"repository": "sagar-deep-saha/Red-Code",
-	"updatedAt": "2026-11-13T01:38:36.981Z",
+	"updatedAt": "2026-11-13T20:37:57.269Z",
 	"releases": [
+		{
+			"version": "1.147.3",
+			"date": "2026-11-13T20:37:57.253Z",
+			"prerelease": false,
+			"notes": "### GitHub sync\n\n- Fix the first upload failing with HTTP 422. The Gist payload now carries only files that have\n  content, and deletes a snapshot file only when the remote Gist still has it, so GitHub's rule\n  that `null` is a delete for an existing file (and invalid otherwise) is respected. Unknown files\n  in the Gist are never touched.\n- Show GitHub's own validation message instead of a bare \"rejected the sync data\".\n- Derive the status bar from the token a sync would use, so a stored but unrecognised session no\n  longer leaves the bar showing \"Sign in to Sync\".",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.3",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.3/RedCode-Setup.exe",
+				"sha256": "e503e0397d2a29907197a908608a2f6c9d5124846a96965cba2800af25f11d2b",
+				"size": 300610320
+			}
+		},
 		{
 			"version": "1.147.2",
 			"date": "2026-11-13T01:38:36.963Z",
