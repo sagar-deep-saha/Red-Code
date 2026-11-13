@@ -1,6 +1,18 @@
 {
 	"releases": [
 		{
+			"version": "1.147.2",
+			"date": "2026-11-13T01:38:36.963Z",
+			"prerelease": false,
+			"notes": "### Workbench\n\n- Replace the maroon Red theme with a Deep Blue palette and Laravel-red focus, selection and active\n  indicators while keeping the familiar VS Code panel positions.\n- Use the supplied Laravel mark in its Activity Bar container.\n- Keep GitHub Copilot Chat as the existing VS Code integration; no custom AI service is added.\n\n### Updates\n\n- Open actions for a cached update directly from the status bar instead of checking the release feed\n  again; report when an update check is already running.\n\n### Security\n\n- Use synthetic key-shaped test data and non-production MongoDB example values in redaction tests.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.2",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.2/RedCode-Setup.exe",
+				"sha256": "b388f28501b866c4c8752261ab644cc69b0805046bd6973a3379503b64dbfe0b",
+				"size": 300644795
+			}
+		},
+		{
 			"version": "1.147.1",
 			"date": "2026-11-12T11:01:16.565Z",
 			"prerelease": false,

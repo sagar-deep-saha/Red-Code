@@ -41,7 +41,8 @@ offered when `redCode.updates.includePrerelease` is on.
 
    ```powershell
    node build/red-code/release-manifest.mjs `
-     --installer ..\VSCode-win32-x64\.build\win32-x64\user-setup\VSCodeSetup.exe `
+     --installer .build\win32-x64\user-setup\VSCodeSetup.exe `
+     --package-dir ..\VSCode-win32-x64 `
      --asset-name RedCode-Setup.exe `
      --version 1.147.2 --tag v1.147.2 --repository sagar-deep-saha/Red-Code
    ```
@@ -55,6 +56,9 @@ offered when `redCode.updates.includePrerelease` is on.
    The record is only written when the version in `package.json` and the `product.json` inside
    the packaged app both match `--version`. A stale build tree therefore fails here instead of
    being published and then reporting an older version after an update.
+
+   `--package-dir` must point at the app tree the installer was built from; without it the setup
+   output folder contains no `product.json` and the manifest can only warn instead of verifying.
 
    If the repository lives under a deep path, Inno Setup cannot stat bundled files
    whose full path passes 260 characters (Copilot's nested `node_modules` does this).

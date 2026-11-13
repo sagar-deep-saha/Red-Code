@@ -15,7 +15,8 @@
  *
  * Usage:
  *   node build/red-code/release-manifest.mjs \
- *     --installer ..\VSCode-win32-x64\.build\win32-x64\user-setup\VSCodeSetup.exe \
+ *     --installer .build\win32-x64\user-setup\VSCodeSetup.exe \
+ *     --package-dir ..\VSCode-win32-x64 \
  *     --asset-name RedCode-Setup.exe \
  *     --version 1.147.2 \
  *     --tag v1.147.2 \
