@@ -84,6 +84,27 @@ offered when `redCode.updates.includePrerelease` is on.
    `redcode-updates.json` first, and falls back to the digest GitHub reports for the EXE.
    Upload the installer under the same name that was passed as `--asset-name`.
 
+   **`path#Name` sets the asset label, not its file name.** Current `gh` uploads the file under
+   its local name and only records `Name` in the label field, so
+   `VSCodeSetup.exe#RedCode-Setup.exe` publishes an asset whose download path is
+   `.../download/v1.147.3/VSCodeSetup.exe` — the feed URL for `RedCode-Setup.exe` then returns 404.
+   Renaming the asset afterwards with `gh api -X PATCH .../releases/assets/<id> -f name=...`
+   does not fix the download route either. 1.147.3 needed a manual delete plus re-upload.
+   So rename (or hardlink) the file to the final asset name **before** uploading:
+
+   ```powershell
+   New-Item -ItemType HardLink -Path "$env:TEMP\RedCode-Setup.exe" `
+     -Target (Resolve-Path '.build\win32-x64\user-setup\VSCodeSetup.exe').Path
+   gh release create v1.147.4 "$env:TEMP\RedCode-Setup.exe" "releases\redcode-updates.json" `
+     --repo sagar-deep-saha/Red-Code --verify-tag --title "Red Code 1.147.4" `
+     --notes-file "releases\notes-1.147.4.md"
+   ```
+
+   After publishing, verify all three before announcing the release: the asset **name** equals
+   the name in the feed URL, `curl.exe -s -o NUL -w "%{http_code}" -L --head <feed url>`
+   prints `200`, and the asset `digest` reported by `gh release view --json assets` matches the
+   `sha256` in `redcode-updates.json`.
+
 5. Never launch or pin the build folders (`VSCode-win32-x64`, `RedCode-win32-x64`). They are
    staging output that the next build overwrites, so a shortcut or taskbar pin created from one
    keeps opening the previous version after an update even though the update succeeded. Install
