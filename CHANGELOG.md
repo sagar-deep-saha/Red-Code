@@ -5,6 +5,18 @@ patch for each Red Code build. `1.147.0` was built and installed locally but nev
 has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
+## [1.147.3] — 2026-11-14
+
+### GitHub sync
+
+- Fix the first upload failing with HTTP 422. The Gist payload now carries only files that have
+  content, and deletes a snapshot file only when the remote Gist still has it, so GitHub's rule
+  that `null` is a delete for an existing file (and invalid otherwise) is respected. Unknown files
+  in the Gist are never touched.
+- Show GitHub's own validation message instead of a bare "rejected the sync data".
+- Derive the status bar from the token a sync would use, so a stored but unrecognised session no
+  longer leaves the bar showing "Sign in to Sync".
+
 ## [1.147.2] — 2026-11-13
 
 ### Workbench
