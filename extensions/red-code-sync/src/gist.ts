@@ -9,7 +9,7 @@ const API = 'https://api.github.com';
 const USER_AGENT = 'Red-Code-Sync';
 
 export class GistError extends Error {
-	constructor(message: string, readonly status: number) {
+	constructor(message: string, readonly status: number, readonly details?: string) {
 		super(message);
 		this.name = 'GistError';
 	}
@@ -46,6 +46,42 @@ function messageFor(status: number): string {
 	}
 }
 
+/**
+ * GitHub answers most validation failures with a `message` plus a structured
+ * `errors` array. Keeping that text makes a failure diagnosable instead of a
+ * bare "GitHub rejected the sync data".
+ */
+export function describeFailure(text: string): string | undefined {
+	if (!text) {
+		return undefined;
+	}
+	try {
+		const body = JSON.parse(text) as { message?: unknown; errors?: unknown };
+		const parts: string[] = [];
+		if (typeof body.message === 'string' && body.message.length > 0) {
+			parts.push(body.message);
+		}
+		if (Array.isArray(body.errors)) {
+			for (const entry of body.errors) {
+				if (entry === null || typeof entry !== 'object') {
+					continue;
+				}
+				const record = entry as { resource?: unknown; field?: unknown; code?: unknown; message?: unknown };
+				const pieces = [record.resource, record.field].filter((value): value is string => typeof value === 'string' && value.length > 0);
+				const code = typeof record.code === 'string' && record.code.length > 0
+					? record.code
+					: typeof record.message === 'string' ? record.message : undefined;
+				if (pieces.length > 0 || code) {
+					parts.push(`${pieces.join('.') || 'error'}${code ? `: ${code}` : ''}`);
+				}
+			}
+		}
+		return parts.length > 0 ? parts.join(' — ') : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 async function request<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
 	const response = await fetch(`${API}${path}`, {
 		...init,
@@ -61,7 +97,9 @@ async function request<T>(token: string, path: string, init: RequestInit = {}): 
 
 	const text = await response.text();
 	if (!response.ok) {
-		throw new GistError(messageFor(response.status), response.status);
+		const details = describeFailure(text);
+		const message = messageFor(response.status);
+		throw new GistError(details ? `${message} (${details})` : message, response.status, details);
 	}
 	return (text ? JSON.parse(text) : undefined) as T;
 }

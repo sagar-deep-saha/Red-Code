@@ -5,9 +5,10 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { describeFailure } from '../gist.js';
 import { parseJsonc } from '../jsonc.js';
 import {
-	buildGistFiles, buildManifest, extensionDiff, EXTENSIONS_FILE, filterSettings, isSecretLikeKey,
+	buildGistFiles, buildGistPayload, buildManifest, extensionDiff, EXTENSIONS_FILE, filterSettings, isSecretLikeKey,
 	KEYBINDINGS_FILE, MANIFEST_FILE, matchesExclusion, parseGistFiles, SETTINGS_FILE, shouldPull, SNIPPETS_FILE
 } from '../payload.js';
 
@@ -135,4 +136,48 @@ test('extension diffs are case-insensitive and preserve original ids', () => {
 	);
 	assert.deepEqual(diff.missing, ['redcode.red-code-laravel']);
 	assert.deepEqual(diff.extra, []);
+});
+
+test('a new Gist request never carries null or empty files', () => {
+	const manifest = buildManifest(undefined, 'device', '1.147.1');
+	const snapshot = { settings: { 'editor.fontSize': 14 }, keybindings: '', snippets: {}, extensions: [] };
+
+	const payload = buildGistPayload(snapshot, manifest, undefined);
+	assert.deepEqual(Object.keys(payload).sort(), [MANIFEST_FILE, SETTINGS_FILE].sort());
+	assert.ok(Object.values(payload).every(file => file !== null && file.content.length > 0));
+});
+
+test('an update deletes only optional files the remote Gist still has', () => {
+	const manifest = buildManifest({ schemaVersion: 1, revision: 3, updatedAt: '', device: 'd', editorVersion: '1' }, 'device', '1.147.1');
+	const snapshot = { settings: {}, keybindings: undefined, snippets: {}, extensions: [] };
+
+	const payload = buildGistPayload(snapshot, manifest, new Set([SETTINGS_FILE, MANIFEST_FILE, KEYBINDINGS_FILE, 'notes.md']));
+	assert.equal(payload[SETTINGS_FILE]?.content.endsWith('}\n'), true);
+	assert.equal(payload[KEYBINDINGS_FILE], null, 'a remote optional file is removed');
+	assert.equal(SNIPPETS_FILE in payload, false, 'a file absent on both sides is not sent');
+	assert.equal('notes.md' in payload, false, 'unknown Gist files are never touched');
+});
+
+test('an empty local snapshot deletes only the files that exist', () => {
+	const manifest = buildManifest(undefined, 'device', '1.147.1');
+	const snapshot = { settings: {}, keybindings: undefined, snippets: {}, extensions: [] };
+
+	const fresh = buildGistPayload(snapshot, manifest, undefined);
+	assert.deepEqual(Object.keys(fresh).sort(), [MANIFEST_FILE, SETTINGS_FILE].sort());
+
+	const existing = buildGistPayload(snapshot, manifest, new Set([SETTINGS_FILE, MANIFEST_FILE, SNIPPETS_FILE, EXTENSIONS_FILE]));
+	assert.deepEqual(Object.keys(existing).sort(), [MANIFEST_FILE, SETTINGS_FILE, SNIPPETS_FILE, EXTENSIONS_FILE].sort());
+	assert.equal(existing[SNIPPETS_FILE], null);
+	assert.equal(existing[EXTENSIONS_FILE], null);
+});
+
+test('GitHub validation bodies are kept in the error message', () => {
+	const body = JSON.stringify({
+		message: 'Validation Failed',
+		errors: [{ resource: 'Gist', code: 'missing_field', field: 'files' }]
+	});
+	assert.equal(describeFailure(body), 'Validation Failed — Gist.files: missing_field');
+	assert.equal(describeFailure(''), undefined);
+	assert.equal(describeFailure('not json'), undefined);
+	assert.equal(describeFailure(JSON.stringify({ message: 'Bad credentials' })), 'Bad credentials');
 });

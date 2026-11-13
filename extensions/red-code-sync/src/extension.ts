@@ -8,8 +8,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { createGist, gistWebUrl, getAuthenticatedUser, getGist, Gist, GistError, listGists, updateGist } from './gist.js';
 import {
-	buildGistFiles, buildManifest, describeSnapshot, extensionDiff, EXTENSIONS_FILE, filterSettings,
-	KEYBINDINGS_FILE, MANIFEST_FILE, matchesExclusion, parseGistFiles, SNIPPETS_FILE,
+	buildGistPayload, buildManifest, describeSnapshot, extensionDiff, filterSettings,
+	MANIFEST_FILE, matchesExclusion, parseGistFiles,
 	shouldPull, SyncSnapshot
 } from './payload.js';
 import { parseJsonc } from './jsonc.js';
@@ -35,6 +35,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
 	statusItem.command = 'redCode.sync.syncNow';
 	updateStatus();
 	statusItem.show();
+	void refreshSignedInState();
 
 	context.subscriptions.push(
 		statusItem,
@@ -96,6 +97,9 @@ async function getToken(createIfNone: boolean): Promise<string | undefined> {
 
 	try {
 		const session = await vscode.authentication.getSession('github', ['gist'], { createIfNone });
+		if (session) {
+			await rememberLogin(session.accessToken, session.account.label);
+		}
 		return session?.accessToken;
 	} catch (error) {
 		if (createIfNone) {
@@ -109,7 +113,40 @@ async function getToken(createIfNone: boolean): Promise<string | undefined> {
 	}
 }
 
-async function rememberLogin(token: string): Promise<void> {
+/**
+ * The status bar used to depend on a login name written during sign-in, so a
+ * session created before that write (or a failed `/user` read) left the bar
+ * saying "Sign in to Sync" while a working token was already stored. Resolve
+ * the token the same way a sync does and derive the label from it.
+ */
+async function refreshSignedInState(): Promise<void> {
+	try {
+		const stored = await context.secrets.get(PAT_SECRET);
+		if (stored) {
+			await rememberLogin(stored);
+			return;
+		}
+
+		const session = await vscode.authentication.getSession('github', ['gist'], { createIfNone: false, silent: true });
+		if (session) {
+			await rememberLogin(session.accessToken, session.account.label);
+			return;
+		}
+	} catch {
+		// A missing or unauthorised session simply means signed out.
+	}
+
+	await context.globalState.update(LOGIN_KEY, undefined);
+	updateStatus();
+}
+
+async function rememberLogin(token: string, login?: string): Promise<void> {
+	if (login) {
+		await context.globalState.update(LOGIN_KEY, login);
+		updateStatus();
+		return;
+	}
+
 	try {
 		const user = await getAuthenticatedUser(token);
 		await context.globalState.update(LOGIN_KEY, user.login);
@@ -244,13 +281,8 @@ async function push(interactive: boolean): Promise<void> {
 		}
 
 		const manifest = buildManifest(remoteManifest, os.hostname(), vscode.version);
-		const files = buildGistFiles(snapshot, manifest);
-		const payload: Record<string, { content: string } | null> = { ...files };
-		for (const optional of [KEYBINDINGS_FILE, SNIPPETS_FILE, EXTENSIONS_FILE]) {
-			if (!(optional in files)) {
-				payload[optional] = null;
-			}
-		}
+		const remoteFiles = gist?.files ? new Set(Object.keys(gist.files)) : undefined;
+		const payload = buildGistPayload(snapshot, manifest, remoteFiles);
 
 		const saved = gist ? await updateGist(token, gist.id, payload) : await createGist(token, gistDescription(), payload);
 		await context.globalState.update(GIST_ID_KEY, saved.id);

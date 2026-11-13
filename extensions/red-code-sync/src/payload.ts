@@ -112,6 +112,8 @@ export function buildManifest(
  * Gist file set. Every file is a small JSON or raw-text document so a gist
  * stays readable on github.com without the extension.
  */
+const SNAPSHOT_FILES = [SETTINGS_FILE, MANIFEST_FILE, KEYBINDINGS_FILE, SNIPPETS_FILE, EXTENSIONS_FILE] as const;
+
 export function buildGistFiles(snapshot: SyncSnapshot, manifest: SyncManifest): Record<string, GistFileContent> {
 	const files: Record<string, GistFileContent> = {
 		[SETTINGS_FILE]: { content: `${JSON.stringify(snapshot.settings, null, '\t')}\n` },
@@ -129,6 +131,46 @@ export function buildGistFiles(snapshot: SyncSnapshot, manifest: SyncManifest): 
 	}
 
 	return files;
+}
+
+/**
+ * Gist objects accept a file map where `null` deletes a file. Two GitHub API
+ * rules make the naive "send `null` for every file we do not have" payload
+ * fail with `422 Validation Failed`:
+ *
+ * - a new Gist rejects `null` entries (`POST /gists`), and
+ * - an update rejects `null` for a file that is not in that Gist.
+ *
+ * It also rejects empty content for a file that does not exist yet. A Gist
+ * update can carry an empty snapshot, so a missing optional file must be
+ * deleted only when the remote copy actually has it; when it exists remotely
+ * and is empty locally, deleting it is the same outcome as an empty update.
+ */
+export function buildGistPayload(
+	snapshot: SyncSnapshot,
+	manifest: SyncManifest,
+	remoteFiles: ReadonlySet<string> | undefined
+): Record<string, GistFileContent | null> {
+	const files = buildGistFiles(snapshot, manifest);
+	const payload: Record<string, GistFileContent | null> = {};
+
+	for (const [name, file] of Object.entries(files)) {
+		// An empty body creates an invalid Gist file and silently truncates an
+		// existing one. Treat "no content" as "not part of the snapshot".
+		if (file.content.length > 0) {
+			payload[name] = file;
+		}
+	}
+
+	if (remoteFiles) {
+		for (const name of SNAPSHOT_FILES) {
+			if (!(name in payload) && remoteFiles.has(name)) {
+				payload[name] = null;
+			}
+		}
+	}
+
+	return payload;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
