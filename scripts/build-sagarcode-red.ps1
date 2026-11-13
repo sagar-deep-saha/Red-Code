@@ -47,6 +47,18 @@ $artifactMarker = Join-Path $artifactPath '.red-code-build'
 if (-not (Test-Path -LiteralPath (Join-Path $packagePath 'Red Code.exe') -PathType Leaf)) {
 	throw "The expected packaged executable was not found in $packagePath"
 }
+
+# A build that did not finish keeps the previous tree, which would otherwise be copied and
+# installed as if it were this version. Check the stamped version before staging anything.
+$productJsonPath = Join-Path $packagePath 'resources\app\product.json'
+if (-not (Test-Path -LiteralPath $productJsonPath -PathType Leaf)) {
+	throw "The packaged application has no product.json: $productJsonPath"
+}
+$builtVersion = (Get-Content -LiteralPath $productJsonPath -Raw | ConvertFrom-Json).version
+$declaredVersion = (Get-Content -LiteralPath (Join-Path $repoRoot 'package.json') -Raw | ConvertFrom-Json).version
+if ($builtVersion -ne $declaredVersion) {
+	throw "The packaged tree reports $builtVersion but package.json says $declaredVersion. The output is stale; rerun the build."
+}
 if (Test-Path -LiteralPath $artifactPath) {
 	if (-not (Test-Path -LiteralPath $artifactMarker -PathType Leaf)) {
 		throw "Refusing to overwrite an unmarked artifact directory: $artifactPath"

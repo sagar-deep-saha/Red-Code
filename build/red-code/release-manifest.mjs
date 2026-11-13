@@ -9,12 +9,21 @@
  * releases/versions.json, regenerates releases/redcode-updates.json and copies
  * the changelog into the updater extension so offline version history works.
  *
+ * The version recorded here must match both the repository package.json and the
+ * product.json inside the packaged app, so a stale build tree can never be
+ * published as a newer release.
+ *
  * Usage:
  *   node build/red-code/release-manifest.mjs \
- *     --installer ..\RedCode-Setup.exe \
- *     --version 1.147.1 \
- *     --tag v1.147.1 \
+ *     --installer ..\VSCode-win32-x64\.build\win32-x64\user-setup\VSCodeSetup.exe \
+ *     --asset-name RedCode-Setup.exe \
+ *     --version 1.147.2 \
+ *     --tag v1.147.2 \
  *     --repository sagar-deep-saha/Red-Code
+ *
+ * --asset-name is the file name the installer is uploaded as. It defaults to the
+ * installer's own file name and is used to build the download URL, so the feed
+ * keeps working when the local VSCodeSetup.exe is published as RedCode-Setup.exe.
  */
 
 import { createHash } from 'node:crypto';
@@ -150,7 +159,49 @@ async function main() {
 		}
 	}
 
-	const assetName = installerPath ? path.basename(installerPath) : `RedCode-Setup-${version}.exe`;
+	const rootPackage = await readJson(path.join(repoRoot, 'package.json'), {});
+	if (rootPackage.version !== version) {
+		fail(`package.json is ${rootPackage.version} but --version is ${version}; bump package.json before recording a release.`);
+	}
+
+	if (installerPath) {
+		const candidates = [
+			typeof args['package-dir'] === 'string' ? path.resolve(repoRoot, args['package-dir']) : undefined,
+			path.dirname(installerPath),
+			path.resolve(path.dirname(installerPath), '..')
+		].filter(Boolean);
+		let packagedRoot;
+		let packagedVersion;
+		for (const candidate of candidates) {
+			const productJson = path.join(candidate, 'resources', 'app', 'product.json');
+			if ((await stat(productJson).catch(() => undefined))?.isFile()) {
+				packagedRoot = candidate;
+				packagedVersion = (await readJson(productJson, {})).version;
+				break;
+			}
+		}
+		if (packagedVersion === undefined) {
+			console.warn('release-manifest: found no packaged product.json to verify the built version against.');
+		} else if (packagedVersion !== version) {
+			fail(`the package at ${packagedRoot} reports version ${packagedVersion} but this release is ${version}; rebuild before recording.`);
+		} else {
+			console.log(`Verified packaged version ${packagedVersion} in ${path.relative(repoRoot, packagedRoot)}.`);
+		}
+	}
+
+	const assetName = typeof args['asset-name'] === 'string'
+		? args['asset-name'].trim()
+		: installerPath ? path.basename(installerPath) : `RedCode-Setup-${version}.exe`;
+	if (!/^[A-Za-z0-9._-]+$/.test(assetName)) {
+		fail('--asset-name must be a plain file name such as RedCode-Setup.exe.');
+	}
+	if (!/^RedCode-Setup.*\.exe$/i.test(assetName)) {
+		console.warn(`release-manifest: ${assetName} does not match RedCode-Setup*.exe; upload the installer under the name recorded in the feed.`);
+	}
+	if (installerPath && assetName !== path.basename(installerPath)) {
+		console.log(`Publishing ${path.basename(installerPath)} as ${assetName}.`);
+	}
+
 	const installerUrl = typeof args['installer-url'] === 'string'
 		? args['installer-url']
 		: `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;

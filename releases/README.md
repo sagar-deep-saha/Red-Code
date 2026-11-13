@@ -42,12 +42,19 @@ offered when `redCode.updates.includePrerelease` is on.
    ```powershell
    node build/red-code/release-manifest.mjs `
      --installer ..\VSCode-win32-x64\.build\win32-x64\user-setup\VSCodeSetup.exe `
-     --version 1.147.2 --tag v1.147.2 --repository sagar-deep-saha/Red-Code `
-     --installer-url https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.2/RedCode-Setup.exe
+     --asset-name RedCode-Setup.exe `
+     --version 1.147.2 --tag v1.147.2 --repository sagar-deep-saha/Red-Code
    ```
 
    This hashes the installer, appends to `releases/versions.json`, writes
    `releases/redcode-updates.json` and copies `CHANGELOG.md` into the updater extension.
+
+   `--asset-name` is the file name the installer is uploaded as, and it is the name the feed
+   records, so the download URL cannot point at an asset the release does not carry.
+
+   The record is only written when the version in `package.json` and the `product.json` inside
+   the packaged app both match `--version`. A stale build tree therefore fails here instead of
+   being published and then reporting an older version after an update.
 
    If the repository lives under a deep path, Inno Setup cannot stat bundled files
    whose full path passes 260 characters (Copilot's nested `node_modules` does this).
@@ -71,6 +78,13 @@ offered when `redCode.updates.includePrerelease` is on.
 
    The updater accepts any asset named `RedCode-Setup*.exe`. It reads the SHA-256 from
    `redcode-updates.json` first, and falls back to the digest GitHub reports for the EXE.
+   Upload the installer under the same name that was passed as `--asset-name`.
+
+5. Never launch or pin the build folders (`VSCode-win32-x64`, `RedCode-win32-x64`). They are
+   staging output that the next build overwrites, so a shortcut or taskbar pin created from one
+   keeps opening the previous version after an update even though the update succeeded. Install
+   into `%LOCALAPPDATA%\Programs\Red Code` and pin from the Start Menu entry, and `scripts/install-sagarcode-red.ps1`
+   repoints existing shortcuts and pins at the installed copy.
 
 ## How an installed build sees an update
 
