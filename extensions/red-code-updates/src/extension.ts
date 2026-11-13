@@ -27,13 +27,14 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
 
 	statusItem = vscode.window.createStatusBarItem('redCode.updates', vscode.StatusBarAlignment.Right, 100);
 	statusItem.name = 'Red Code Updates';
-	statusItem.command = 'redCode.updates.check';
+	statusItem.command = 'redCode.updates.openStatus';
 	updateStatusItem();
 	statusItem.show();
 
 	context.subscriptions.push(
 		statusItem,
 		vscode.commands.registerCommand('redCode.updates.check', () => checkForUpdates(true)),
+		vscode.commands.registerCommand('redCode.updates.openStatus', () => openStatusItem()),
 		vscode.commands.registerCommand('redCode.updates.versionHistory', () => showVersionHistory()),
 		vscode.commands.registerCommand('redCode.updates.openReleasePage', () => openReleasePage()),
 		vscode.commands.registerCommand('redCode.updates.showStatus', () => showStatus()),
@@ -102,17 +103,7 @@ async function checkForUpdates(interactive: boolean): Promise<void> {
 			return;
 		}
 
-		const actions = ['Download & Install', 'Release Notes', 'Later'];
-		const choice = await vscode.window.showInformationMessage(
-			`Red Code ${pendingRelease.version} is available. You are running ${vscode.version}.`,
-			...actions
-		);
-
-		if (choice === actions[0]) {
-			await downloadAndInstall(pendingRelease);
-		} else if (choice === actions[1]) {
-			await openReleasePage();
-		}
+		await promptForUpdate(pendingRelease);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		if (statusItem) {
@@ -124,6 +115,32 @@ async function checkForUpdates(interactive: boolean): Promise<void> {
 		}
 	} finally {
 		checking = false;
+	}
+}
+
+async function openStatusItem(): Promise<void> {
+	if (checking) {
+		void vscode.window.showInformationMessage('Red Code is already checking for updates.');
+		return;
+	}
+	if (pendingRelease) {
+		await promptForUpdate(pendingRelease);
+		return;
+	}
+	await checkForUpdates(true);
+}
+
+async function promptForUpdate(release: ReleaseInfo): Promise<void> {
+	const actions = ['Download & Install', 'Release Notes', 'Later'];
+	const choice = await vscode.window.showInformationMessage(
+		`Red Code ${release.version} is available. You are running ${vscode.version}.`,
+		...actions
+	);
+
+	if (choice === actions[0]) {
+		await downloadAndInstall(release);
+	} else if (choice === actions[1]) {
+		await openReleasePage();
 	}
 }
 

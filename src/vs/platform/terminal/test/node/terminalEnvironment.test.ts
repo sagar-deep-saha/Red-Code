@@ -349,7 +349,8 @@ suite('platform - terminalEnvironment', async () => {
 
 		test('should redact Google API keys by value pattern', () => {
 			deepStrictEqual(sanitizeEnvForLogging({
-				GOOGLE_KEY: 'AIzaSyDaGmWKa4JsXZ-HjGw7ISLn_3namBGewQe'
+				// Use a synthetic key-shaped value so this test cannot recreate a leaked credential.
+				GOOGLE_KEY: `AIza${'A'.repeat(35)}`
 			}), {
 				GOOGLE_KEY: '<REDACTED>'
 			});

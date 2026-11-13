@@ -1,9 +1,27 @@
 # Red Code changelog
 
 Red Code is a VS Code 1.147 fork. Version numbers keep the upstream `major.minor` and increment the
-patch for each Red Code build, so `1.147.1` is the first published Red Code build. `1.147.0` was
-built and installed locally but never released, so it has no download.
+patch for each Red Code build. `1.147.0` was built and installed locally but never released, so it
+has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
+
+## [1.147.2] — 2026-11-13
+
+### Workbench
+
+- Replace the maroon Red theme with a Deep Blue palette and Laravel-red focus, selection and active
+  indicators while keeping the familiar VS Code panel positions.
+- Use the supplied Laravel mark in its Activity Bar container.
+- Keep GitHub Copilot Chat as the existing VS Code integration; no custom AI service is added.
+
+### Updates
+
+- Open actions for a cached update directly from the status bar instead of checking the release feed
+  again; report when an update check is already running.
+
+### Security
+
+- Use synthetic key-shaped test data and non-production MongoDB example values in redaction tests.
 
 ## [1.147.1] — 2026-11-12
 

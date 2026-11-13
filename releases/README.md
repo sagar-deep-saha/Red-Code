@@ -10,8 +10,8 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | Build | Version |
 |---|---|
 | VS Code 1.147.0, first Red Code build | `1.147.0` |
-| Next Red Code build | `1.147.1` |
-| … | `1.147.2` |
+| First published Red Code build | `1.147.1` |
+| Next Red Code build | `1.147.2` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
 must not advertise a download that does not exist.
@@ -42,7 +42,8 @@ offered when `redCode.updates.includePrerelease` is on.
    ```powershell
    node build/red-code/release-manifest.mjs `
      --installer ..\VSCode-win32-x64\.build\win32-x64\user-setup\VSCodeSetup.exe `
-     --version 1.147.1 --tag v1.147.1 --repository sagar-deep-saha/Red-Code
+     --version 1.147.2 --tag v1.147.2 --repository sagar-deep-saha/Red-Code `
+     --installer-url https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.2/RedCode-Setup.exe
    ```
 
    This hashes the installer, appends to `releases/versions.json`, writes
@@ -61,11 +62,11 @@ offered when `redCode.updates.includePrerelease` is on.
 4. Publish the GitHub release and attach both files:
 
    ```powershell
-   gh release create v1.147.1 `
+   gh release create v1.147.2 `
      "...\VSCodeSetup.exe#RedCode-Setup.exe" `
      "releases\redcode-updates.json" `
      --repo sagar-deep-saha/Red-Code `
-     --title "Red Code 1.147.1" --notes-file "releases\notes-1.147.1.md"
+     --title "Red Code 1.147.2" --notes-file "releases\notes-1.147.2.md"
    ```
 
    The updater accepts any asset named `RedCode-Setup*.exe`. It reads the SHA-256 from
