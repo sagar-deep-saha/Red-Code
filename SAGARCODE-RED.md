@@ -90,6 +90,8 @@ upstream product/build changes before rebuilding.
   the CC BY 4.0 notice.
 - `resources/win32/code.ico`, `resources/linux/code.png`, `resources/darwin/code.icns` and the
   Windows tile PNGs: generated from the SVG by `scripts/create-red-code-icons.mjs`.
+- `resources/win32/inno-big-*.bmp` and `inno-small-*.bmp`: Inno Setup wizard artwork for every DPI
+  scale, generated from the same SVG by `scripts/create-red-code-wizard-images.mjs`.
 - `scripts/build-sagarcode-red.ps1` and `scripts/install-sagarcode-red.ps1`: reproducible packaging
   and non-admin, user-scoped install/shortcut creation.
 - `releases/`: published version history, updater feed, release notes and the release checklist.

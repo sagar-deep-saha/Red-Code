@@ -33,6 +33,8 @@ try {
 	if ($LASTEXITCODE -ne 0) { throw "pnpm install failed with exit code $LASTEXITCODE" }
 	& node (Join-Path $PSScriptRoot 'create-red-code-icons.mjs')
 	if ($LASTEXITCODE -ne 0) { throw "Red Code icon generation failed with exit code $LASTEXITCODE" }
+	& node (Join-Path $PSScriptRoot 'create-red-code-wizard-images.mjs')
+	if ($LASTEXITCODE -ne 0) { throw "Red Code installer image generation failed with exit code $LASTEXITCODE" }
 
 	& corepack pnpm@12.16.0 run gulp vscode-win32-x64
 	if ($LASTEXITCODE -ne 0) { throw "The Windows x64 package build failed with exit code $LASTEXITCODE" }
