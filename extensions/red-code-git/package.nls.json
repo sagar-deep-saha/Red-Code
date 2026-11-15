@@ -1,0 +1,11 @@
+{
+	"displayName": "Red Code Git",
+	"description": "A GitLens-style commit graph with inline blame, commit details and read-only diff previews.",
+	"configTitle": "Red Code Git",
+	"showGraphCommand": "Show Git Graph",
+	"refreshCommand": "Refresh Git Graph",
+	"toggleBlameCommand": "Toggle Inline Blame",
+	"copyShaCommand": "Copy Commit SHA",
+	"graphPageSizeDescription": "Number of commits loaded per page in the Git graph. The graph asks for another page when you choose Load More.",
+	"blameEnabledDescription": "Show author and relative date annotations at the end of every line in the active editor. Uses read-only git blame."
+}

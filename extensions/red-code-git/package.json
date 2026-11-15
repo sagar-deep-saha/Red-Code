@@ -1,0 +1,101 @@
+{
+	"name": "red-code-git",
+	"displayName": "%displayName%",
+	"description": "%description%",
+	"version": "1.0.0",
+	"publisher": "redcode",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.147.0"
+	},
+	"main": "./out/extension.js",
+	"capabilities": {
+		"virtualWorkspaces": false,
+		"untrustedWorkspaces": {
+			"supported": true
+		}
+	},
+	"activationEvents": [
+		"onStartupFinished",
+		"onCommand:redCode.git.showGraph",
+		"onCommand:redCode.git.refresh",
+		"onCommand:redCode.git.toggleBlame",
+		"onCommand:redCode.git.copySha"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "redCode.git.showGraph",
+				"title": "%showGraphCommand%",
+				"category": "Red Code Git",
+				"icon": "$(graph)"
+			},
+			{
+				"command": "redCode.git.refresh",
+				"title": "%refreshCommand%",
+				"category": "Red Code Git"
+			},
+			{
+				"command": "redCode.git.toggleBlame",
+				"title": "%toggleBlameCommand%",
+				"category": "Red Code Git"
+			},
+			{
+				"command": "redCode.git.copySha",
+				"title": "%copyShaCommand%",
+				"category": "Red Code Git"
+			}
+		],
+		"menus": {
+			"scm/title": [
+				{
+					"command": "redCode.git.showGraph",
+					"group": "navigation"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "redCode.git.showGraph",
+					"when": "true"
+				},
+				{
+					"command": "redCode.git.refresh",
+					"when": "true"
+				},
+				{
+					"command": "redCode.git.toggleBlame",
+					"when": "true"
+				},
+				{
+					"command": "redCode.git.copySha",
+					"when": "true"
+				}
+			]
+		},
+		"configuration": {
+			"title": "%configTitle%",
+			"properties": {
+				"redCode.git.graphPageSize": {
+					"type": "number",
+					"default": 300,
+					"minimum": 50,
+					"maximum": 5000,
+					"description": "%graphPageSizeDescription%"
+				},
+				"redCode.git.blame.enabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "%blameEnabledDescription%"
+				}
+			}
+		}
+	},
+	"scripts": {
+		"compile": "node ./esbuild.mts",
+		"watch": "node ./esbuild.mts --watch",
+		"test": "tsc -p tsconfig.json && node --test out/test/graph.test.js out/test/log.test.js out/test/blame.test.js"
+	},
+	"devDependencies": {
+		"@types/node": "24.x"
+	}
+}

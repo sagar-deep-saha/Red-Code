@@ -1,6 +1,18 @@
 {
 	"releases": [
 		{
+			"version": "1.147.4",
+			"date": "2026-11-15T23:22:15.097Z",
+			"prerelease": false,
+			"notes": "### API client\n\n- New **Red Code API** extension: an HTTP client in the editor, so Laravel endpoints can be called\n  without leaving Red Code. Requests are sent from the extension host with Node's `http`/`https`,\n  so there is no browser CORS restriction.\n- Request editor with method, URL, query parameters, headers, body modes (JSON, text, form, none),\n  response status, headers, body, size and duration.\n- Variables are merged from `redCode.api.variables` < `.env` (`baseUrl` falls back to `APP_URL`) <\n  `.redcode/api/environments/<name>.json`.\n- Collections live in `.redcode/api/collections/*.json`; `.http` files in the workspace open as\n  requests too. Collections are browsable in the **API** view and refresh when files change.\n- Laravel extras: **New Request from Route** reads `php artisan route:list --json` with the\n  configured PHP binary, and a cookie jar plus `GET /sanctum/csrf-cookie` sends `X-XSRF-TOKEN` on\n  state-changing requests.\n\n### Git graph\n\n- New **Red Code Git** extension: a GitLens-style commit graph with lanes for branches and merges,\n  ref badges, search, paging and a status bar entry.\n- Selecting a commit shows its full SHA, parents, author, date, refs, message and changed files;\n  selecting a file loads that file's patch, with a 300 KB display cap.\n- Optional inline blame decorates the active editor with author, relative time and short SHA, and\n  a hover holds the full commit summary. Only read-only git commands are used.\n- **Copy Commit SHA** and **Toggle Inline Blame** commands; page size is configurable.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.4",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.4/RedCode-Setup.exe",
+				"sha256": "f9647dbe524c7d0ace032b8293aae968b3b90de8c31dad2e6e728c3755ee059b",
+				"size": 300678212
+			}
+		},
+		{
 			"version": "1.147.3",
 			"date": "2026-11-13T20:37:57.253Z",
 			"prerelease": false,

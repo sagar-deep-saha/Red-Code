@@ -1,0 +1,154 @@
+{
+	"name": "red-code-api",
+	"displayName": "%displayName%",
+	"description": "%description%",
+	"version": "1.0.0",
+	"publisher": "redcode",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.147.0"
+	},
+	"main": "./out/extension.js",
+	"capabilities": {
+		"virtualWorkspaces": false,
+		"untrustedWorkspaces": {
+			"supported": "limited",
+			"description": "%untrustedWorkspacesDescription%"
+		}
+	},
+	"activationEvents": [
+		"onView:redCode.api.collections"
+	],
+	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "redCodeApi",
+					"title": "%containerTitle%",
+					"icon": "media/api.svg"
+				}
+			]
+		},
+		"views": {
+			"redCodeApi": [
+				{
+					"id": "redCode.api.collections",
+					"name": "%collectionsView%"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "redCode.api.newRequest",
+				"title": "%newRequestCommand%",
+				"category": "Red Code API",
+				"icon": "$(add)"
+			},
+			{
+				"command": "redCode.api.newRequestFromRoute",
+				"title": "%newRequestFromRouteCommand%",
+				"category": "Red Code API"
+			},
+			{
+				"command": "redCode.api.selectEnvironment",
+				"title": "%selectEnvironmentCommand%",
+				"category": "Red Code API"
+			},
+			{
+				"command": "redCode.api.fetchCsrfCookie",
+				"title": "%fetchCsrfCommand%",
+				"category": "Red Code API"
+			},
+			{
+				"command": "redCode.api.clearCookies",
+				"title": "%clearCookiesCommand%",
+				"category": "Red Code API"
+			},
+			{
+				"command": "redCode.api.refresh",
+				"title": "%refreshCommand%",
+				"category": "Red Code API",
+				"icon": "$(refresh)"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "redCode.api.newRequest",
+					"when": "view == redCode.api.collections",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.api.refresh",
+					"when": "view == redCode.api.collections",
+					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "redCode.api.newRequest",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.collection",
+					"group": "inline@1"
+				},
+				{
+					"command": "redCode.api.newRequest",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.collection"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "redCode.api.refresh",
+					"when": "view == redCode.api.collections"
+				}
+			]
+		},
+		"configuration": {
+			"title": "Red Code API",
+			"properties": {
+				"redCode.api.variables": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					},
+					"default": {},
+					"description": "%variablesDescription%"
+				},
+				"redCode.api.environment": {
+					"type": "string",
+					"default": "",
+					"description": "%environmentDescription%"
+				},
+				"redCode.api.timeoutMs": {
+					"type": "number",
+					"default": 30000,
+					"minimum": 1000,
+					"maximum": 300000,
+					"description": "%timeoutDescription%"
+				},
+				"redCode.api.verifyTls": {
+					"type": "boolean",
+					"default": true,
+					"description": "%verifyTlsDescription%"
+				},
+				"redCode.api.followRedirects": {
+					"type": "boolean",
+					"default": true,
+					"description": "%followRedirectsDescription%"
+				},
+				"redCode.api.laravelCsrf": {
+					"type": "boolean",
+					"default": true,
+					"description": "%laravelCsrfDescription%"
+				}
+			}
+		}
+	},
+	"scripts": {
+		"compile": "node ./esbuild.mts",
+		"watch": "node ./esbuild.mts --watch",
+		"test": "tsc -p tsconfig.json && node --test out/test/model.test.js out/test/variables.test.js out/test/cookies.test.js out/test/routes.test.js out/test/http.test.js"
+	},
+	"devDependencies": {
+		"@types/node": "24.x"
+	}
+}

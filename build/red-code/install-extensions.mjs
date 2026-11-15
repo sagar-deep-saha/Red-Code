@@ -22,7 +22,7 @@ import path from 'node:path';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
 const workspaceRoot = path.dirname(repoRoot);
-const EXTENSIONS = ['red-code', 'red-code-laravel', 'red-code-sync', 'red-code-updates', 'theme-red'];
+const EXTENSIONS = ['red-code', 'red-code-laravel', 'red-code-sync', 'red-code-api', 'red-code-git', 'red-code-updates', 'theme-red'];
 const PACKAGE_FILES = ['package.json', 'package.nls.json', 'README.md', 'CHANGELOG.md'];
 const ASSET_DIRECTORIES = ['media', 'themes', 'out'];
 

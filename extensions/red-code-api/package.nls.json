@@ -1,0 +1,19 @@
+{
+	"displayName": "Red Code API",
+	"description": "Send HTTP requests to your Laravel app, keep them in the workspace, and read the response without leaving the editor.",
+	"untrustedWorkspacesDescription": "Requests are sent only when you press Send, but a folder you do not trust could include a request file that points anywhere.",
+	"containerTitle": "Red Code API",
+	"collectionsView": "Collections",
+	"newRequestCommand": "New Request",
+	"newRequestFromRouteCommand": "New Request from Laravel Route",
+	"selectEnvironmentCommand": "Select Environment",
+	"fetchCsrfCommand": "Fetch Laravel CSRF Cookie",
+	"clearCookiesCommand": "Clear Cookies",
+	"refreshCommand": "Refresh Collections",
+	"variablesDescription": "Variables available to every request as `{{name}}`. `.env` values and the selected environment file are merged on top of these.",
+	"environmentDescription": "Name of the environment file in `.redcode/api/environments/<name>.json` whose variables are used. Empty means no environment file.",
+	"timeoutDescription": "How long to wait for a response before the request is cancelled.",
+	"verifyTlsDescription": "Verify TLS certificates of HTTPS endpoints. Turn this off only for a local server with a self-signed certificate.",
+	"followRedirectsDescription": "Follow up to five HTTP redirects and show the final response.",
+	"laravelCsrfDescription": "Send `X-XSRF-TOKEN` from the `XSRF-TOKEN` cookie, and fetch `/sanctum/csrf-cookie` before a non-GET request when that cookie is still missing."
+}
