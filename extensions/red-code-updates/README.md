@@ -17,32 +17,49 @@ else is ignored: the extension is deliberately unable to offer an unverifiable d
 
 ```json
 {
-  "releases": [
-    {
-      "version": "1.147.2",
-      "date": "2026-11-20T10:00:00Z",
-      "installer": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.2/RedCode-Setup.exe",
-      "sha256": "…64 hex characters…",
-      "size": 533000000,
-      "notes": "Laravel S2: models, schema, env, logs, tests.",
-      "prerelease": false
-    }
-  ]
+	"releases": [
+		{
+			"version": "1.147.4",
+			"date": "2026-11-15T23:22:15.097Z",
+			"prerelease": false,
+			"notes": "API client and Git graph.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.4",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.4/RedCode-Setup.exe",
+				"sha256": "…64 hex characters…",
+				"size": 300678212
+			}
+		}
+	]
 }
 ```
 
-Relative `installer` URLs are resolved against the feed URL, so a feed served next to its installer
-works as-is.
+The parser also accepts a top-level `installer` string (or `installerUrl` / `url` / `hash`) and the
+GitHub API's `html_url` / `body`, so a hand-written or API-shaped feed works. Relative `installer`
+URLs are resolved against the feed URL, so a feed served next to its installer works as-is. A
+release without a valid HTTPS URL and SHA-256 is ignored.
 
 ## Commands
 
 - **Red Code: Check for Updates**
-- **Red Code: Version History** — bundled `CHANGELOG.md` plus every published release
+- **Red Code: Version History** — opens a Markdown preview of the bundled `CHANGELOG.md` plus every
+  published release
 - **Red Code: Open Release Page**
 - **Red Code: Show Update Status**
 
 The status bar always shows the update button: `Red Code <version>`, switching to
 `$(cloud-download) Red Code <new version>` when a build is waiting.
+
+## Settings
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `redCode.updates.repository` | `sagar-deep-saha/Red-Code` | GitHub repository whose Releases are read when no feed URL is set. |
+| `redCode.updates.feedUrl` | `""` | HTTPS feed URL; takes precedence over the repository. |
+| `redCode.updates.checkOnStartup` | `true` | Check once at startup, at most every six hours. |
+| `redCode.updates.includePrerelease` | `false` | Also offer pre-release versions. |
+| `redCode.updates.downloadDirectory` | `""` | Where the installer is stored; empty = the OS temp folder. |
+| `redCode.updates.installArguments` | `/SILENT /NORESTART /MERGETASKS=!runcode` | Arguments passed to the installer. |
 
 ## Installing
 

@@ -26,6 +26,22 @@ that includes the full SHA and commit summary. Untitled or unsaved documents, fi
 **Red Code Git: Copy Commit SHA** shows the most recent commits and copies the selected full SHA
 to the clipboard.
 
+## Settings
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `redCode.git.graphPageSize` | `300` | Commits loaded per page, 50–5000. **Load More** adds another page. |
+| `redCode.git.blame.enabled` | `false` | Inline blame annotations in the active editor. |
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `Red Code Git: Show Git Graph` | Opens or reveals the graph panel for the selected repository. |
+| `Red Code Git: Refresh Git Graph` | Reloads the graph and the status bar summary. |
+| `Red Code Git: Toggle Inline Blame` | Turns `redCode.git.blame.enabled` on or off. |
+| `Red Code Git: Copy Commit SHA` | Picks a recent commit and copies its full SHA. |
+
 ## Safety
 
 The extension runs only read-only git commands: `rev-parse`, `log`, `show`, `blame` and

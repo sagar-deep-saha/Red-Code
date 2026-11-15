@@ -11,10 +11,14 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 |---|---|
 | VS Code 1.147.0, first Red Code build | `1.147.0` |
 | First published Red Code build | `1.147.1` |
-| Next Red Code build | `1.147.2` |
+| Laravel S0+S1, Sync, Updates, Changed Files | `1.147.2` |
+| GitHub sync upload fix | `1.147.3` |
+| API client and Git graph | `1.147.4` |
+| Next Red Code build | `1.147.5` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist.
+must not advertise a download that does not exist. The latest published build is `1.147.4`
+(`RedCode-Setup.exe`, 300,678,212 bytes, sha256 `f9647dbe…ee059b`).
 
 The version lives in `package.json`. The build writes it into `product.json`, which is what the
 editor reports as `vscode.version`. Pre-releases use a suffix (`1.147.3-beta.1`) and are only
@@ -31,6 +35,10 @@ offered when `redCode.updates.includePrerelease` is on.
    corepack pnpm@12.16.0 run gulp vscode-win32-x64-user-setup
    ```
 
+   `vscode-win32-x64-ci` skips recompiling the core when `out` is already present and up to date;
+   use it for an extension-only release whose core sources have not changed. It still packages every
+   bundled extension from `extensions/` into the app tree.
+
    The Inno Setup compiler comes from the `innosetup` npm package; nothing has to be installed
    globally. Two tools must be on `PATH` for a local (non-CI) build: Node 24.22.1 and the Windows
    SDK `signtool.exe` (`C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64`), because
@@ -44,7 +52,7 @@ offered when `redCode.updates.includePrerelease` is on.
      --installer .build\win32-x64\user-setup\VSCodeSetup.exe `
      --package-dir ..\VSCode-win32-x64 `
      --asset-name RedCode-Setup.exe `
-     --version 1.147.2 --tag v1.147.2 --repository sagar-deep-saha/Red-Code
+     --version 1.147.5 --tag v1.147.5 --repository sagar-deep-saha/Red-Code
    ```
 
    This hashes the installer, appends to `releases/versions.json`, writes
@@ -70,14 +78,23 @@ offered when `redCode.updates.includePrerelease` is on.
    corepack pnpm@12.16.0 run gulp vscode-win32-x64-user-setup
    ```
 
+   For an extension-only release, the packaged tree may be reused after updating its
+   `resources/app/product.json` (version, commit, date), replacing
+   `resources/app/extensions/<name>/` and refreshing
+   `extensions/red-code-updates/CHANGELOG.md` inside it. The manifest still verifies the bundled
+   version, and the release must be built and recorded from that tree; never point
+   `--package-dir` at a tree that was not the installer source.
+
 4. Publish the GitHub release and attach both files:
 
    ```powershell
-   gh release create v1.147.2 `
-     "...\VSCodeSetup.exe#RedCode-Setup.exe" `
-     "releases\redcode-updates.json" `
-     --repo sagar-deep-saha/Red-Code `
-     --title "Red Code 1.147.2" --notes-file "releases\notes-1.147.2.md"
+   git tag v1.147.5
+   git push origin v1.147.5
+   New-Item -ItemType HardLink -Path "$env:TEMP\RedCode-Setup.exe" `
+     -Target (Resolve-Path '.build\win32-x64\user-setup\VSCodeSetup.exe').Path
+   gh release create v1.147.5 "$env:TEMP\RedCode-Setup.exe" "releases\redcode-updates.json" `
+     --repo sagar-deep-saha/Red-Code --verify-tag --title "Red Code 1.147.5" `
+     --notes-file "releases\notes-1.147.5.md"
    ```
 
    The updater accepts any asset named `RedCode-Setup*.exe`. It reads the SHA-256 from
@@ -90,15 +107,8 @@ offered when `redCode.updates.includePrerelease` is on.
    `.../download/v1.147.3/VSCodeSetup.exe` — the feed URL for `RedCode-Setup.exe` then returns 404.
    Renaming the asset afterwards with `gh api -X PATCH .../releases/assets/<id> -f name=...`
    does not fix the download route either. 1.147.3 needed a manual delete plus re-upload.
-   So rename (or hardlink) the file to the final asset name **before** uploading:
-
-   ```powershell
-   New-Item -ItemType HardLink -Path "$env:TEMP\RedCode-Setup.exe" `
-     -Target (Resolve-Path '.build\win32-x64\user-setup\VSCodeSetup.exe').Path
-   gh release create v1.147.4 "$env:TEMP\RedCode-Setup.exe" "releases\redcode-updates.json" `
-     --repo sagar-deep-saha/Red-Code --verify-tag --title "Red Code 1.147.4" `
-     --notes-file "releases\notes-1.147.4.md"
-   ```
+   Always hardlink (or rename) the installer to the final asset name **before** uploading, as in
+   the step above.
 
    After publishing, verify all three before announcing the release: the asset **name** equals
    the name in the feed URL, `curl.exe -s -o NUL -w "%{http_code}" -L --head <feed url>`
