@@ -23,6 +23,12 @@ has no download; `1.147.1` is the first published Red Code build.
 - Replace the editor's document watermark with Red Code branding across themes.
 - Refresh the Windows installer wizard artwork with the Red Code mark.
 
+### Platforms
+
+- This build ships Windows x64. From the next release, every build includes Windows, macOS and
+  Linux packages for each supported architecture, tested per platform, with `SHA256SUMS` and
+  per-platform install guides (`releases/platforms.md`).
+
 ## [1.147.4] — 2026-11-16
 
 ### API client

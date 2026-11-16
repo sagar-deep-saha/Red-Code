@@ -14,11 +14,19 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | Laravel S0+S1, Sync, Updates, Changed Files | `1.147.2` |
 | GitHub sync upload fix | `1.147.3` |
 | API client and Git graph | `1.147.4` |
-| Next Red Code build | `1.147.5` |
+| API/Git polish, branded installer and watermark | `1.147.5` |
+| Next Red Code build (first cross-platform release) | `1.147.6` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
 must not advertise a download that does not exist. The latest published build is `1.147.4`
 (`RedCode-Setup.exe`, 300,678,212 bytes, sha256 `f9647dbe…ee059b`).
+
+## Platform coverage
+
+`1.147.1`–`1.147.5` are Windows x64 builds. Starting with the release after `1.147.5`, every
+official release must ship Windows, macOS and Linux packages for every supported architecture,
+tested on each combination, with per-platform install guides and a `SHA256SUMS` file. The
+checklist is in [platforms.md](platforms.md); it is a release blocker, not a nice-to-have.
 
 The version lives in `package.json`. The build writes it into `product.json`, which is what the
 editor reports as `vscode.version`. Pre-releases use a suffix (`1.147.3-beta.1`) and are only
@@ -30,10 +38,16 @@ offered when `redCode.updates.includePrerelease` is on.
 2. Build the app and the installer:
 
    ```powershell
-   $env:PATH = "C:\Users\sagar\.config\herd\bin\nvm\v24.22.1;$env:PATH"
+   $env:PATH = "C:\Users\sagar\.config\herd\bin\nvm\v24.22.1;C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64;$env:PATH"
    corepack pnpm@12.16.0 run gulp vscode-win32-x64
+   corepack pnpm@12.16.0 run gulp vscode-win32-x64-inno-updater
    corepack pnpm@12.16.0 run gulp vscode-win32-x64-user-setup
    ```
+
+   `vscode-win32-x64-inno-updater` copies `inno_updater.exe` and `vcruntime140.dll` into
+   `<app tree>\tools\` and stamps the Red Code icon on the updater. The setup task does not
+   depend on it, so a tree that was never run through it fails the Inno compile with
+   `No files found matching "...\tools\*"`.
 
    `vscode-win32-x64-ci` skips recompiling the core when `out` is already present and up to date;
    use it for an extension-only release whose core sources have not changed. It still packages every
