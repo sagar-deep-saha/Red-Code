@@ -15,7 +15,7 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | GitHub sync upload fix | `1.147.3` |
 | API client and Git graph | `1.147.4` |
 | API/Git polish, branded installer and watermark | `1.147.5` |
-| Next Red Code build (first cross-platform release) | `1.147.6` |
+| Next Red Code build (first x64 + arm64 release) | `1.147.6` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
 must not advertise a download that does not exist. The latest published build is `1.147.5`
@@ -23,10 +23,11 @@ must not advertise a download that does not exist. The latest published build is
 
 ## Platform coverage
 
-`1.147.1`–`1.147.5` are Windows x64 builds. Starting with the release after `1.147.5`, every
-official release must ship Windows, macOS and Linux packages for every supported architecture,
-tested on each combination, with per-platform install guides and a `SHA256SUMS` file. The
-checklist is in [platforms.md](platforms.md); it is a release blocker, not a nice-to-have.
+Red Code is Windows only: **x64** and **arm64**. Both installers are mandatory for every release
+starting with `1.147.6`, each tested on its own architecture, with a `SHA256SUMS` file covering all
+artifacts. **macOS and Linux are not offered** — no packages, no install guides and no promises in
+release notes. The checklist is in [platforms.md](platforms.md); it is a release blocker, not a
+nice-to-have.
 
 The version lives in `package.json`. The build writes it into `product.json`, which is what the
 editor reports as `vscode.version`. Pre-releases use a suffix (`1.147.3-beta.1`) and are only

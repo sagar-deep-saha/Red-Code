@@ -7,8 +7,8 @@ compatible extensions directly in the editor.
 
 Current release: **1.147.5** (Windows x64). See [README.md](README.md) for the feature overview and
 [releases/README.md](releases/README.md) for the release procedure. From `1.147.6` every official
-release ships Windows, macOS and Linux packages for each supported architecture; the mandatory
-checklist is [releases/platforms.md](releases/platforms.md).
+release ships **Windows x64 and Windows arm64** installers; macOS and Linux are not offered. The
+mandatory checklist is [releases/platforms.md](releases/platforms.md).
 
 ## Bundled Red Code extensions
 

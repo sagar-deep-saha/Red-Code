@@ -19,13 +19,11 @@ same guidance in Copilot format lives in [.github/copilot-instructions.md](.gith
 - Never execute `.bat`/`.cmd` files. Resolve `php.exe` directly (Herd paths are parsed, not run).
 - Releases come from GitHub Releases of `sagar-deep-saha/Red-Code`; the updater trusts only HTTPS
   URLs with a matching SHA-256. Never advertise a version that has no downloadable asset.
-- **Release standard, mandatory from the build after `1.147.5`:** every official release ships
-  compiled, tested packages for Windows, macOS and Linux, one per supported architecture
-  (`x64`, `arm64`, and any other supported arch), each tested on that OS and architecture for
-  install, function, compatibility and performance; platform defects are fixed before tagging;
-  every release includes per-platform install guides, troubleshooting and tailored notes, plus a
-  `SHA256SUMS` file covering all artifacts. See [releases/platforms.md](releases/platforms.md).
-  `1.147.1`–`1.147.5` were Windows x64 only; do not repeat that.
+- **Release standard, mandatory from `1.147.6`:** Red Code ships **Windows x64 and Windows arm64**
+  only. Every official release builds and tests an installer for both architectures, resolves
+  platform defects before tagging, and publishes a `SHA256SUMS` file covering all artifacts.
+  **macOS and Linux are not offered** — do not promise, document or attach packages for them. See
+  [releases/platforms.md](releases/platforms.md). `1.147.1`–`1.147.5` shipped x64 only.
 
 ## Working with the code
 

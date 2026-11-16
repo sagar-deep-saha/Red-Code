@@ -1,76 +1,67 @@
-# Platform release standard
+# Platform and release standard
 
-This is the **mandatory** bar for every official Red Code release, starting with the build after
-`1.147.5`. A release that misses any item in this file is not published.
+**Red Code ships Windows only**, in two architectures:
 
-`1.147.1`–`1.147.5` shipped Windows x64 only. That is historical; the checklist below is the rule
-from the next cycle onward.
+| Package | Build task |
+|---|---|
+| Windows x64 user installer (`RedCode-Setup.exe`) | `gulp vscode-win32-x64-user-setup` |
+| Windows arm64 user installer | `gulp vscode-win32-arm64-user-setup` |
 
-## 1. Distribution packages
+macOS and Linux are **not offered**. They are excluded from the roadmap and must not be promised in
+release notes, README files, issue replies or the updater feed. An earlier plan targeted all three
+platforms; that plan was dropped, and `1.147.6` is the release that states the final scope.
 
-Every release carries a compiled, installable package for each supported operating system:
+This file is the mandatory bar for every official release, starting with `1.147.6`.
 
-| Platform | Package format | Build task |
-|---|---|---|
-| Windows | Inno Setup installer (`-user-setup`) | `gulp vscode-win32-<arch>-user-setup` |
-| Windows | Portable ZIP | `gulp vscode-win32-<arch>` + archive |
-| macOS | `.dmg` (or signed `.zip`) | `gulp vscode-darwin-<arch>` |
-| Linux | `.deb`, `.rpm`, `.tar.gz` | `gulp vscode-linux-<arch>-deb` / `-rpm` / `vscode-linux-<arch>` |
+## 1. Packages
 
-A package is only "compiled and production-ready" when it was built from the released commit — not
-from a dirty tree, not from a cached staging folder.
+- Build the app tree from the release commit: `gulp vscode-win32-<arch>`, then
+  `gulp vscode-win32-<arch>-inno-updater`, then `gulp vscode-win32-<arch>-user-setup`.
+- Never publish a package built from a dirty tree, a reused staging folder that does not match
+  `package.json`, or an app tree whose `resources/app/product.json` disagrees with the version being
+  released.
+- `x64` and `arm64` are separate artifacts. A missing architecture is a release blocker, not a
+  footnote.
 
-## 2. Architecture variants
+## 2. Testing per architecture
 
-Each platform ships one package per supported architecture:
+Before publishing, for **each** architecture:
 
-- **Windows**: `x64`, `arm64` (and `ia32` only if a real user-facing need appears).
-- **macOS**: `x64` (Intel) and `arm64` (Apple silicon).
-- **Linux**: `x64`, `arm64`, plus `armhf` where the toolchain supports it.
+1. Install from the freshly built setup on that architecture (x64 on x64 Windows, arm64 on Windows
+   on ARM; x64-in-arm64 emulation is not a substitute) with a clean profile.
+2. Functional pass: open a Laravel project; verify Explorer, Laravel Routes/Project/Artisan, the API
+   client (send a request), the Git graph, Sync sign-in, the Updates check, and the Red/Red Light
+   themes.
+3. Compatibility check: `vscode.version` matches the release, every bundled extension loads, no
+   missing native modules, installer icons/wizard artwork and file associations are correct.
+4. Performance sanity: cold start, command palette and opening a large workspace stay within the
+   previous release's range; note anything worse than ~10%.
+5. Update path: the previous release's build of the same architecture sees the new release,
+   verifies its SHA-256 and installs it.
 
-Architecture is part of the artifact name, never implied. A missing architecture is called out
-explicitly in the release notes instead of being silently skipped.
+Record the result per architecture. An untested architecture blocks the release.
 
-## 3. Testing per platform and architecture
+## 3. Issue resolution
 
-Before publishing, for **every** platform + architecture pair above:
+Fix every defect found in step 2 before the tag is created — install failures, file-lock and
+uninstall-registry problems, icon/shortcut mistakes, arm64-specific crashes. Something that cannot
+be fixed in the cycle is a blocker, not a "known issue" in the notes.
 
-1. Install the package into a clean environment (fresh profile, no leftover user data) and launch.
-2. Functional pass: open a Laravel project, verify Explorer, Laravel Routes/Project/Artisan,
-   API client (send a request), Git graph, Sync sign-in, Updates check, and the Red/Red Light themes.
-3. Compatibility check: the build reports the expected `vscode.version`, loads every bundled
-   extension, and has no missing native modules or code-signing/quarantine failures.
-4. Performance sanity: cold start, command palette, and opening a large workspace stay within
-   the previous release's range; note anything worse than ~10%.
-5. Update path: the previous release's build of the same platform/architecture sees the new
-   release, verifies its SHA-256 and installs it.
+## 4. Documentation
 
-Record the result of each pair. Unverified pairs block the release.
+Every release includes install instructions and troubleshooting for both architectures
+(SmartScreen warning, per-user vs system install, arm64 requirements), and release notes that state
+the platform scope. Do not document macOS or Linux installs.
 
-## 4. Issue resolution
-
-All platform-specific defects found in step 3 are fixed before the tag is created — installation
-errors, dependency/native-module conflicts, packaging mistakes, and signing/notarization problems.
-A defect that cannot be fixed in this cycle is a release blocker, not a known issue in the notes.
-
-## 5. Documentation
-
-Every release includes, alongside the general notes:
-
-- A per-platform install guide (Windows, macOS, Linux) in the repository `docs/` tree, linked from
-  the release notes.
-- Platform-specific troubleshooting (Gatekeeper/notarization, `.deb` dependency install, SmartScreen,
-  ARM64 emulation notes) that matches what actually shipped.
-- Release notes grouped per platform when behaviour differs, plus one "all platforms" summary.
-
-## 6. Artifacts and checksums
+## 5. Artifacts and checksums
 
 - One Git tag per release, semantic (`v<major>.<minor>.<patch>`), matching `package.json`.
-- Every artifact attached to the GitHub release, named `<Product>-<os>-<arch>.<ext>`.
+- Both installers attached to the GitHub release, named `RedCode-Setup-<arch>.exe` style so the
+  architecture is never implied.
 - A `SHA256SUMS` file covering **all** artifacts, plus each artifact's SHA-256 in
   `releases/versions.json`.
-- `releases/redcode-updates.json` points at the correct per-platform installer with its own
-  SHA-256; the updater must never receive a URL for an artifact that does not exist.
+- `releases/redcode-updates.json` points at the correct architecture with its own SHA-256; the
+  updater must never receive a URL for an artifact that does not exist.
 - Verify after upload: asset names match the feed, every feed URL returns `200`, and every digest
   matches `SHA256SUMS`.
 
@@ -78,11 +69,11 @@ Every release includes, alongside the general notes:
 
 ```
 [ ] version bumped in package.json, CHANGELOG.md, notes-<version>.md
-[ ] all platform/arch packages built from the released commit
-[ ] install + functional + compatibility + performance test recorded per platform/arch
-[ ] platform defects fixed before tagging
-[ ] install guides and per-platform troubleshooting updated
+[ ] x64 and arm64 installers built from the release commit
+[ ] install + functional + compatibility + performance test recorded per architecture
+[ ] defects fixed before tagging
+[ ] install guide and troubleshooting updated for both architectures
 [ ] SHA256SUMS generated and verified
-[ ] tag pushed, release created with every artifact
+[ ] tag pushed, release created with both installers
 [ ] feed URLs return 200, digests match, updater sees the new version
 ```
