@@ -6,7 +6,7 @@
 import { readdir } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { ApiRequest, Collection, parseHttpFile } from './model.js';
+import { ApiRequest, Collection, SavedEndpoint, parseHttpFile } from './model.js';
 import { collectionFileName, collectionsDirectory, readCollectionFile } from './storage.js';
 
 export interface CollectionNode {
@@ -112,6 +112,24 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 		const collection = await readCollectionFile(file);
 		this.collections.set(file, collection);
 		return collection.requests;
+	}
+
+	async savedEndpoints(): Promise<SavedEndpoint[]> {
+		const data = await this.load();
+		const endpoints: SavedEndpoint[] = [];
+		for (const node of data.collections) {
+			try {
+				const requests = await this.requests(node.file);
+				requests.forEach((request, index) => endpoints.push({
+					id: `${node.file}#${index}`,
+					collection: node.name,
+					request
+				}));
+			} catch {
+				// A malformed collection should not hide endpoints from other collections.
+			}
+		}
+		return endpoints;
 	}
 
 	getTreeItem(node: ApiNode): vscode.TreeItem {

@@ -10,9 +10,11 @@ the status bar. The graph lists commits with lanes for branches and merges, ref 
 subject, author, relative date and short SHA. Select a commit to see its full SHA, parents,
 author, date, refs, message and changed files. Selecting a file loads that file's patch.
 
+The graph includes a compact history overview and separate branch/tag, graph and commit columns.
 The list is paged. **Load More** requests the next page; the page size is controlled by
 `redCode.git.graphPageSize` (default 300). Search filters the loaded commits by subject, author
-or SHA.
+or SHA. Author initials are shown by default. To load Gravatar photos, enable
+`redCode.git.graphAvatars.enabled`; this sends a hashed author email to Gravatar.
 
 ## Inline Blame
 
@@ -31,6 +33,7 @@ to the clipboard.
 | Setting | Default | Meaning |
 |---|---|---|
 | `redCode.git.graphPageSize` | `300` | Commits loaded per page, 50–5000. **Load More** adds another page. |
+| `redCode.git.graphAvatars.enabled` | `false` | Load author photos from Gravatar. Sends a hashed author email to Gravatar; otherwise initials are shown. |
 | `redCode.git.blame.enabled` | `false` | Inline blame annotations in the active editor. |
 
 ## Commands

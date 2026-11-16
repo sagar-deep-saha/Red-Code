@@ -7,5 +7,6 @@
 	"toggleBlameCommand": "Toggle Inline Blame",
 	"copyShaCommand": "Copy Commit SHA",
 	"graphPageSizeDescription": "Number of commits loaded per page in the Git graph. The graph asks for another page when you choose Load More.",
+	"graphAvatarsEnabledDescription": "Load commit author avatars from Gravatar. This sends a hashed author email to Gravatar; initials are shown when disabled or no avatar exists.",
 	"blameEnabledDescription": "Show author and relative date annotations at the end of every line in the active editor. Uses read-only git blame."
 }

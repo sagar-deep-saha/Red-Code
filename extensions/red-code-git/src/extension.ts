@@ -18,7 +18,8 @@ export function activate(context: vscode.ExtensionContext): void {
 	const blame = new BlameDecorations();
 	const panel = new GraphPanel({
 		root: () => root,
-		pageSize: () => vscode.workspace.getConfiguration('redCode.git').get<number>('graphPageSize', 300)
+		pageSize: () => vscode.workspace.getConfiguration('redCode.git').get<number>('graphPageSize', 300),
+		avatarLookupEnabled: () => vscode.workspace.getConfiguration('redCode.git').get<boolean>('graphAvatars.enabled', false)
 	});
 
 	async function workspaceRoots(): Promise<string[]> {

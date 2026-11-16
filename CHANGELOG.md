@@ -5,6 +5,24 @@ patch for each Red Code build. `1.147.0` was built and installed locally but nev
 has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
+## [1.147.5] — 2026-11-16
+
+### API client
+
+- Add collections, persistent request tabs and a command to duplicate the active request.
+- Add editable base URL profiles and a dropdown for switching between saved endpoints.
+- Refresh the API Activity Bar icon with a transparent, theme-aware request/response design.
+
+### Git graph
+
+- Align the graph with GitLens-style branch, graph and commit-message columns.
+- Add optional commit-author avatars, disabled by default for privacy.
+
+### Workbench
+
+- Replace the editor's document watermark with Red Code branding across themes.
+- Refresh the Windows installer wizard artwork with the Red Code mark.
+
 ## [1.147.4] — 2026-11-16
 
 ### API client

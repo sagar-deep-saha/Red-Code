@@ -5,6 +5,7 @@
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { gravatarUrl } from './avatars.js';
 import { commitDetails, commitFiles, commitPatch, GitError, logCommits, statusSummary } from './git.js';
 import { computeGraph, GraphRow, refLabel } from './graph.js';
 import { formatDate } from './log.js';
@@ -17,6 +18,7 @@ export interface GraphPanelDeps {
 	/** Resolved repository root, or `undefined` when the workspace has no git repository. */
 	root(): string | undefined;
 	pageSize(): number;
+	avatarLookupEnabled(): boolean;
 }
 
 interface GraphMessage {
@@ -108,8 +110,12 @@ export class GraphPanel implements vscode.Disposable {
 					short: row.commit.short,
 					subject: row.commit.subject,
 					author: row.commit.author,
+					avatarUrl: gravatarUrl(row.commit.email, this.deps.avatarLookupEnabled()),
 					date: row.commit.date,
-					refs: row.commit.refs.map(ref => ({ text: ref, ...refLabel(ref) })),
+					refs: row.commit.refs.map(ref => {
+						const label = refLabel(ref);
+						return { text: label.name, kind: label.kind };
+					}),
 					lane: row.lane,
 					before: row.before,
 					after: row.after
@@ -191,35 +197,56 @@ export class GraphPanel implements vscode.Disposable {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${scriptNonce}'; img-src ${webview.cspSource} data:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${scriptNonce}'; img-src ${webview.cspSource} https://www.gravatar.com https://*.gravatar.com data:;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 	:root { color-scheme: light dark; }
 	html, body { height: 100%; }
 	body { margin: 0; display: flex; flex-direction: column; font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--vscode-foreground); background: var(--vscode-editor-background); overflow: hidden; }
-	header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--vscode-panel-border); }
+	header { display: flex; min-height: 42px; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--vscode-panel-border); }
 	header h1 { font-size: 13px; font-weight: 600; margin: 0; }
-	header .branch { color: var(--vscode-descriptionForeground); font-size: 12px; }
-	header input { flex: 1; max-width: 320px; margin-left: auto; font-family: inherit; font-size: inherit; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); border-radius: 2px; padding: 4px 6px; }
-	header button { font-family: inherit; font-size: inherit; padding: 4px 10px; border: none; border-radius: 2px; cursor: pointer; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
-	header button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+	.repo-icon { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 5px; color: var(--vscode-symbolIcon-classForeground, #75beff); background: var(--vscode-toolbar-hoverBackground); font-size: 15px; }
+	.repo-context { min-width: 0; display: flex; align-items: center; gap: 7px; }
+	.repo-context .branch { display: inline-flex; align-items: center; gap: 5px; color: var(--vscode-descriptionForeground); font-size: 12px; white-space: nowrap; }
+	.repo-context .branch::before { content: "⑂"; color: var(--vscode-charts-blue, #61afef); font-size: 15px; }
+	.toolbar-spacer { flex: 1; }
+	.toolbar { display: flex; align-items: center; gap: 6px; min-width: 0; }
+	.search-wrap { display: flex; width: min(34vw, 360px); min-width: 150px; align-items: center; gap: 7px; padding: 0 8px; border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius: 4px; color: var(--vscode-descriptionForeground); background: var(--vscode-input-background); }
+	.search-wrap:focus-within { border-color: var(--vscode-focusBorder); }
+	.search-wrap svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; }
+	.search-wrap input { width: 100%; min-width: 0; padding: 5px 0; border: 0; outline: 0; color: var(--vscode-input-foreground); background: transparent; font: inherit; }
+	.search-wrap input::placeholder { color: var(--vscode-input-placeholderForeground); }
+	.toolbar button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--vscode-button-border, var(--vscode-panel-border)); border-radius: 4px; cursor: pointer; color: var(--vscode-foreground); background: var(--vscode-button-secondaryBackground); font: inherit; }
+	.toolbar button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+	.toolbar button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 	main { flex: 1; display: flex; min-height: 0; }
-	#graphPane { width: 58%; min-width: 320px; display: flex; flex-direction: column; border-right: 1px solid var(--vscode-panel-border); }
+	#graphPane { width: 70%; min-width: 360px; display: flex; flex-direction: column; border-right: 1px solid var(--vscode-panel-border); }
+	#overview { display: flex; height: 58px; flex: 0 0 auto; align-items: center; gap: 12px; padding: 7px 12px; border-bottom: 1px solid var(--vscode-panel-border); }
+	#overview .overview-copy { display: flex; min-width: 106px; flex-direction: column; gap: 3px; }
+	#overview .overview-title { font-size: 11px; font-weight: 600; }
+	#overview .overview-count { color: var(--vscode-descriptionForeground); font-size: 10px; }
+	#overview svg { width: 100%; height: 38px; overflow: visible; }
+	#columns { display: grid; height: 26px; flex: 0 0 auto; grid-template-columns: 164px 150px minmax(150px, 1fr); align-items: center; padding: 0 12px; border-bottom: 1px solid var(--vscode-panel-border); color: var(--vscode-descriptionForeground); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
 	#list { flex: 1; overflow: auto; position: relative; }
 	#spacer { position: relative; }
-	.row { position: absolute; left: 0; right: 0; height: ${ROW_HEIGHT}px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 4px; box-sizing: border-box; cursor: pointer; border-bottom: 1px solid transparent; }
+	.row { position: absolute; left: 0; right: 0; height: ${ROW_HEIGHT}px; display: grid; grid-template-columns: 164px 150px minmax(150px, 1fr); align-items: center; gap: 0; padding: 0 12px; box-sizing: border-box; cursor: pointer; border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, transparent); }
 	.row:hover { background: var(--vscode-list-hoverBackground); }
 	.row.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
-	.row svg { flex: none; display: block; }
+	.ref-column { min-width: 0; display: flex; align-items: center; gap: 4px; overflow: hidden; }
+	.row .graph-cell { min-width: 0; height: 100%; display: flex; align-items: center; overflow: hidden; }
+	.row .graph-cell svg { flex: none; display: block; }
+	.row .commit-cell { min-width: 0; display: flex; align-items: center; gap: 8px; }
 	.row .info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 	.row .subject { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.row .meta { font-size: 11px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.row.selected .meta { color: inherit; opacity: .85; }
-	.refs { display: inline-flex; gap: 4px; margin-right: 6px; vertical-align: middle; }
-	.ref { font-size: 10px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--vscode-badge-background); color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); white-space: nowrap; }
+	.refs { display: inline-flex; min-width: 0; gap: 4px; overflow: hidden; }
+	.ref { max-width: 150px; overflow: hidden; text-overflow: ellipsis; font-size: 10px; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--vscode-badge-background); color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); white-space: nowrap; }
 	.ref.tag { background: transparent; color: var(--vscode-charts-yellow, #d19a66); border-color: var(--vscode-charts-yellow, #d19a66); }
 	.ref.remote { background: transparent; color: var(--vscode-charts-blue, #61afef); border-color: var(--vscode-charts-blue, #61afef); }
 	.ref.head { background: transparent; color: var(--vscode-charts-green, #98c379); border-color: var(--vscode-charts-green, #98c379); }
+	.avatar { position: relative; width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--vscode-panel-border); border-radius: 50%; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); font-size: 9px; font-weight: 600; }
+	.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 	#footer { padding: 6px 12px; border-top: 1px solid var(--vscode-panel-border); display: flex; justify-content: center; }
 	#footer button { font-family: inherit; font-size: 12px; padding: 3px 12px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; cursor: pointer; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
 	#details { flex: 1; overflow: auto; padding: 12px 14px; min-width: 280px; }
@@ -245,17 +272,41 @@ export class GraphPanel implements vscode.Disposable {
 	.hint { color: var(--vscode-descriptionForeground); }
 	.error { color: var(--vscode-errorForeground, #f85149); }
 	#empty { padding: 16px; color: var(--vscode-descriptionForeground); }
+	@media (max-width: 900px) {
+		#graphPane { width: 62%; min-width: 0; }
+		#columns, .row { grid-template-columns: 118px 92px minmax(140px, 1fr); }
+		#details { min-width: 220px; }
+		.row .graph-cell svg { max-width: 88px; }
+		.search-wrap { width: 180px; }
+	}
 </style>
 </head>
 <body>
 <header>
-	<h1 id="title">Git Graph</h1>
-	<span class="branch" id="branch"></span>
-	<input id="search" type="search" placeholder="Filter by subject, author or sha">
-	<button id="refresh">Refresh</button>
+	<span class="repo-icon" aria-hidden="true">⑂</span>
+	<div class="repo-context">
+		<h1 id="title">Git Graph</h1>
+		<span class="branch" id="branch"></span>
+	</div>
+	<span class="toolbar-spacer"></span>
+	<div class="toolbar">
+		<label class="search-wrap" aria-label="Search commits">
+			<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m12.5 12.5 4 4"/></svg>
+			<input id="search" type="search" placeholder="Search commits">
+		</label>
+		<button id="refresh" title="Refresh graph" aria-label="Refresh graph">
+			<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 8a6.5 6.5 0 0 0-11-3L3 7"/><path d="M3 3v4h4M4 12a6.5 6.5 0 0 0 11 3l2-2"/><path d="M17 17v-4h-4"/></svg>
+			Refresh
+		</button>
+	</div>
 </header>
 <main>
 	<div id="graphPane">
+		<div id="overview">
+			<div class="overview-copy"><span class="overview-title">COMMIT GRAPH</span><span class="overview-count" id="overviewCount">Loading history</span></div>
+			<svg id="overviewGraphic" viewBox="0 0 360 38" preserveAspectRatio="none" role="img" aria-label="Commit history overview"></svg>
+		</div>
+		<div id="columns"><span>BRANCH / TAG</span><span>GRAPH</span><span>COMMIT MESSAGE</span></div>
 		<div id="list"><div id="spacer"></div></div>
 		<div id="footer"><button id="more" style="display:none">Load more</button></div>
 	</div>
@@ -270,6 +321,8 @@ export class GraphPanel implements vscode.Disposable {
 	const details = document.getElementById('details');
 	const search = document.getElementById('search');
 	const more = document.getElementById('more');
+	const overviewGraphic = document.getElementById('overviewGraphic');
+	const overviewCount = document.getElementById('overviewCount');
 	const SVG_NS = 'http://www.w3.org/2000/svg';
 	let rows = [];
 	let visible = [];
@@ -332,29 +385,98 @@ export class GraphPanel implements vscode.Disposable {
 			const badge = document.createElement('span');
 			badge.className = 'ref ' + ref.kind;
 			badge.textContent = ref.text;
+			badge.title = ref.text;
 			wrapper.appendChild(badge);
 		}
 		return wrapper;
 	}
 
+	function initials(name) {
+		return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('') || '?';
+	}
+
+	function avatarElement(row) {
+		const avatar = document.createElement('span');
+		avatar.className = 'avatar';
+		avatar.textContent = initials(row.author);
+		avatar.title = row.author;
+		avatar.setAttribute('aria-label', 'Commit author: ' + row.author);
+		if (row.avatarUrl) {
+			const image = document.createElement('img');
+			image.src = row.avatarUrl;
+			image.alt = '';
+			image.referrerPolicy = 'no-referrer';
+			image.addEventListener('error', () => image.remove(), { once: true });
+			avatar.appendChild(image);
+		}
+		return avatar;
+	}
+
 	function buildRow(row) {
 		const element = document.createElement('div');
 		element.className = 'row' + (selected === row.sha ? ' selected' : '');
-		element.appendChild(buildGraph(row));
+		element.setAttribute('role', 'option');
+		element.setAttribute('aria-selected', selected === row.sha ? 'true' : 'false');
+		const refs = document.createElement('div');
+		refs.className = 'ref-column';
+		const labels = refsElement(row);
+		if (labels) { refs.appendChild(labels); }
+		element.appendChild(refs);
+		const graph = document.createElement('div');
+		graph.className = 'graph-cell';
+		graph.appendChild(buildGraph(row));
+		element.appendChild(graph);
 		const info = document.createElement('div');
-		info.className = 'info';
+		info.className = 'commit-cell';
+		info.appendChild(avatarElement(row));
+		const text = document.createElement('div');
+		text.className = 'info';
 		const subject = document.createElement('span');
 		subject.className = 'subject';
-		const refs = refsElement(row);
-		if (refs) { subject.appendChild(refs); }
 		subject.appendChild(document.createTextNode(row.subject));
 		const meta = document.createElement('span');
 		meta.className = 'meta';
 		meta.textContent = row.short + ' · ' + row.author + ' · ' + row.date;
-		info.append(subject, meta);
+		text.append(subject, meta);
+		info.appendChild(text);
 		element.appendChild(info);
 		element.addEventListener('click', () => selectRow(row));
 		return element;
+	}
+
+	function renderOverview() {
+		overviewGraphic.replaceChildren();
+		overviewCount.textContent = rows.length + (rows.length === 1 ? ' commit' : ' commits');
+		if (rows.length === 0) { return; }
+
+		const width = 360;
+		const height = 38;
+		const plotted = rows.slice(0, 180).reverse();
+		const step = plotted.length > 1 ? width / (plotted.length - 1) : 0;
+		for (let index = 0; index < plotted.length - 1; index++) {
+			const from = plotted[index];
+			const to = plotted[index + 1];
+			const fromX = index * step;
+			const toX = (index + 1) * step;
+			const fromY = 5 + (from.lane % 6) * 5.5;
+			const toY = 5 + (to.lane % 6) * 5.5;
+			const path = document.createElementNS(SVG_NS, 'path');
+			path.setAttribute('d', 'M ' + fromX + ' ' + fromY + ' L ' + toX + ' ' + toY);
+			path.setAttribute('fill', 'none');
+			path.setAttribute('stroke', color(from.lane));
+			path.setAttribute('stroke-width', '1.5');
+			path.setAttribute('opacity', '.85');
+			overviewGraphic.appendChild(path);
+		}
+		for (let index = 0; index < plotted.length; index++) {
+			if (index % Math.max(1, Math.floor(plotted.length / 48)) !== 0) { continue; }
+			const dot = document.createElementNS(SVG_NS, 'circle');
+			dot.setAttribute('cx', index * step);
+			dot.setAttribute('cy', 5 + (plotted[index].lane % 6) * 5.5);
+			dot.setAttribute('r', '1.8');
+			dot.setAttribute('fill', color(plotted[index].lane));
+			overviewGraphic.appendChild(dot);
+		}
 	}
 
 	function selectRow(row) {
@@ -511,6 +633,7 @@ export class GraphPanel implements vscode.Disposable {
 			document.getElementById('title').textContent = message.repoLabel;
 			document.getElementById('branch').textContent = message.branch + (message.dirtyFiles ? ' · ' + message.dirtyFiles + ' changed' : '');
 			more.style.display = message.hasMore ? '' : 'none';
+			renderOverview();
 			const active = selected;
 			applyFilter();
 			if (active) {

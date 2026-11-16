@@ -4,14 +4,20 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
-import { ApiRequest } from './model.js';
+import { ApiRequest, BaseUrlProfile, SavedEndpoint } from './model.js';
 
 export interface PanelState {
 	readonly request: ApiRequest;
 	readonly sourceLabel: string;
 	readonly environment: string;
 	readonly baseUrl: string | undefined;
+	readonly defaultBaseUrl: string | undefined;
+	readonly selectedBaseUrlProfile: string;
+	readonly baseUrlProfiles: readonly BaseUrlProfile[];
+	readonly endpoints: readonly SavedEndpoint[];
 	readonly readOnly: boolean;
+	readonly response?: Record<string, unknown>;
+	readonly activeRequestTab?: string;
 }
 
 function nonce(): string {
@@ -44,7 +50,14 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 	button.active { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
 	#method { width: 96px; font-weight: 600; }
 	#url { flex: 1; min-width: 120px; }
+	.request-namebar { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 8px; padding: 2px 0 8px; }
+	.request-namebar .label { color: var(--vscode-descriptionForeground); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+	#requestName { width: 100%; box-sizing: border-box; }
 	.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--vscode-descriptionForeground); font-size: 12px; padding-bottom: 8px; }
+	.workspacebar { display: grid; grid-template-columns: auto minmax(130px, 190px) minmax(180px, 1fr) auto minmax(180px, 280px); align-items: center; gap: 8px; padding: 7px 0 10px; border-bottom: 1px solid var(--vscode-panel-border); }
+	.workspacebar .label { color: var(--vscode-descriptionForeground); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+	.workspacebar input, .workspacebar select { min-width: 0; width: 100%; box-sizing: border-box; }
+	#savedEndpoint { grid-column: 5; }
 	nav { display: flex; gap: 2px; border-bottom: 1px solid var(--vscode-panel-border); }
 	nav button { border: none; border-radius: 0; background: transparent; color: var(--vscode-descriptionForeground); padding: 5px 12px; }
 	nav button.active { color: var(--vscode-foreground); border-bottom: 1px solid var(--vscode-focusBorder); background: transparent; }
@@ -80,13 +93,20 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 	<button id="send" class="primary">Send</button>
 	<button id="save">Save</button>
 </header>
+<div class="request-namebar"><span class="label">REQUEST</span><input id="requestName" type="text" placeholder="Name this request"></div>
+<div class="workspacebar">
+	<span class="label">BASE URL</span>
+	<select id="baseUrlProfile" aria-label="Saved base URL profiles"></select>
+	<input id="baseUrl" type="url" spellcheck="false" placeholder="http://localhost:8000">
+	<button id="saveBaseUrl" title="Save this base URL as a named profile">Save URL</button>
+	<select id="savedEndpoint" aria-label="Saved endpoints"><option value="">Switch to saved endpoint…</option></select>
+</div>
 <div class="toolbar">
 	<span id="source"></span>
 	<span>·</span>
 	<button id="environment"></button>
 	<button id="csrf" title="GET /sanctum/csrf-cookie">CSRF cookie</button>
 	<button id="cookies">Clear cookies</button>
-	<span id="baseurl" class="hint"></span>
 </div>
 
 <nav id="requestTabs">
@@ -129,11 +149,18 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 	const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 	const method = document.getElementById('method');
 	const url = document.getElementById('url');
+	const requestName = document.getElementById('requestName');
+	const baseUrl = document.getElementById('baseUrl');
+	const baseUrlProfile = document.getElementById('baseUrlProfile');
+	const savedEndpoint = document.getElementById('savedEndpoint');
 	const bodyText = document.getElementById('body');
 	const status = document.getElementById('status');
 	const responseBody = document.getElementById('responseBody');
 	const responseHeaders = document.getElementById('responseHeaders');
 	let sending = false;
+	let persistTimer;
+	let lastResponse = state.response;
+	let appliedBaseUrl = state.baseUrl || state.defaultBaseUrl || '';
 
 	for (const name of methods) {
 		const option = document.createElement('option');
@@ -203,9 +230,45 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 		return entries;
 	}
 
+	function snapshot() {
+		const activeTab = document.querySelector('#requestTabs button.active');
+		let savedResponse = lastResponse;
+		if (savedResponse && typeof savedResponse.body === 'string' && savedResponse.body.length > 512 * 1024) {
+			savedResponse = { ...savedResponse, body: '[Response omitted from restored tab because it exceeded 512 KB.]' };
+		}
+		return {
+			request: currentRequest(),
+			sourceLabel: state.sourceLabel,
+			baseUrl: chosenBaseUrl(),
+			selectedBaseUrlProfile: baseUrlProfile.value,
+			readOnly: state.readOnly,
+			response: savedResponse,
+			activeRequestTab: activeTab ? activeTab.dataset.tab : 'params'
+		};
+	}
+
+	function chosenBaseUrl() {
+		const value = baseUrl.value.trim();
+		if (!value) {
+			return undefined;
+		}
+		return baseUrlProfile.value || value !== (state.defaultBaseUrl || '') ? value : undefined;
+	}
+
+	function persistDraft() {
+		const current = snapshot();
+		vscode.setState(current);
+		vscode.postMessage({ type: 'draftChanged', snapshot: current });
+	}
+
+	function queuePersist() {
+		clearTimeout(persistTimer);
+		persistTimer = setTimeout(persistDraft, 140);
+	}
+
 	function currentRequest() {
 		return {
-			name: state.request.name,
+			name: requestName.value.trim() || state.request.name,
 			method: method.value,
 			url: url.value.trim(),
 			params: readTable(document.getElementById('params')),
@@ -218,9 +281,45 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 	}
 
 	function applyState(next) {
+		Object.assign(state, next);
 		state.request = next.request;
 		method.value = next.request.method;
+		requestName.value = next.request.name;
 		url.value = next.request.url;
+		baseUrl.value = next.baseUrl || next.defaultBaseUrl || '';
+		appliedBaseUrl = baseUrl.value;
+		baseUrlProfile.textContent = '';
+		const defaultOption = document.createElement('option');
+		defaultOption.value = '';
+		defaultOption.textContent = 'Use .env / custom URL';
+		baseUrlProfile.appendChild(defaultOption);
+		for (const profile of next.baseUrlProfiles || []) {
+			const option = document.createElement('option');
+			option.value = profile.name;
+			option.textContent = profile.name + ' · ' + profile.url;
+			baseUrlProfile.appendChild(option);
+		}
+		baseUrlProfile.value = next.selectedBaseUrlProfile || '';
+		savedEndpoint.textContent = '';
+		const endpointPlaceholder = document.createElement('option');
+		endpointPlaceholder.value = '';
+		endpointPlaceholder.textContent = 'Switch to saved endpoint…';
+		savedEndpoint.appendChild(endpointPlaceholder);
+		let collectionName = '';
+		let group;
+		for (const endpoint of next.endpoints || []) {
+			if (endpoint.collection !== collectionName) {
+				collectionName = endpoint.collection;
+				group = document.createElement('optgroup');
+				group.label = collectionName;
+				savedEndpoint.appendChild(group);
+			}
+			const option = document.createElement('option');
+			option.value = endpoint.id;
+			option.textContent = endpoint.request.method + ' ' + endpoint.request.name;
+			group.appendChild(option);
+		}
+		savedEndpoint.value = '';
 		fillTable(document.getElementById('params'), next.request.params, true);
 		fillTable(document.getElementById('headers'), next.request.headers, true);
 		for (const radio of document.querySelectorAll('input[name=mode]')) {
@@ -229,8 +328,21 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 		bodyText.value = next.request.body.text || '';
 		document.getElementById('source').textContent = next.sourceLabel;
 		document.getElementById('environment').textContent = 'Environment: ' + (next.environment || 'none');
-		document.getElementById('baseurl').textContent = next.baseUrl ? 'baseUrl = ' + next.baseUrl : 'no APP_URL in .env';
 		document.getElementById('save').style.display = next.readOnly ? 'none' : '';
+		for (const button of document.querySelectorAll('#requestTabs button')) {
+			button.classList.toggle('active', button.dataset.tab === (next.activeRequestTab || 'params'));
+		}
+		for (const panel of document.querySelectorAll('.panel')) {
+			panel.classList.toggle('visible', panel.dataset.panel === (next.activeRequestTab || 'params'));
+		}
+		if (next.response) {
+			showResponse(next.response);
+		} else {
+			lastResponse = undefined;
+			responseBody.textContent = '';
+			responseHeaders.textContent = '';
+			status.innerHTML = '<span class="hint">No response yet.</span>';
+		}
 	}
 
 	applyState(state);
@@ -248,7 +360,10 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 	document.querySelector('#requestTabs button').classList.add('active');
 
 	for (const button of document.querySelectorAll('[data-add]')) {
-		button.addEventListener('click', () => makeRow(document.getElementById(button.dataset.add), { name: '', value: '', enabled: true }));
+		button.addEventListener('click', () => {
+			makeRow(document.getElementById(button.dataset.add), { name: '', value: '', enabled: true });
+			queuePersist();
+		});
 	}
 
 	for (const button of document.querySelectorAll('#responseTabs button')) {
@@ -274,11 +389,47 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 		note.className = 'hint';
 		note.textContent = 'Waiting for response…';
 		status.appendChild(note);
-		vscode.postMessage({ type: 'send', request: currentRequest() });
+		vscode.postMessage({ type: 'send', request: currentRequest(), baseUrl: chosenBaseUrl(), profileName: baseUrlProfile.value });
 	});
 
 	document.getElementById('save').addEventListener('click', () => {
-		vscode.postMessage({ type: 'save', request: currentRequest() });
+		vscode.postMessage({ type: 'save', request: currentRequest(), baseUrl: chosenBaseUrl(), profileName: baseUrlProfile.value });
+	});
+
+	baseUrlProfile.addEventListener('change', () => {
+		const profile = (state.baseUrlProfiles || []).find(item => item.name === baseUrlProfile.value);
+		const nextBaseUrl = profile ? profile.url : (state.defaultBaseUrl || '');
+		retargetRequest(appliedBaseUrl);
+		baseUrl.value = nextBaseUrl;
+		appliedBaseUrl = nextBaseUrl;
+		queuePersist();
+		vscode.postMessage({ type: 'selectBaseUrl', profileName: baseUrlProfile.value });
+	});
+
+	baseUrl.addEventListener('input', () => {
+		retargetRequest(appliedBaseUrl);
+		baseUrlProfile.value = '';
+		queuePersist();
+	});
+
+	document.getElementById('saveBaseUrl').addEventListener('click', () => {
+		vscode.postMessage({ type: 'saveBaseUrlProfile', url: baseUrl.value.trim() });
+	});
+
+	savedEndpoint.addEventListener('change', () => {
+		const endpoint = (state.endpoints || []).find(item => item.id === savedEndpoint.value);
+		if (endpoint) {
+			applyState({
+				...state,
+				request: endpoint.request,
+				sourceLabel: endpoint.collection,
+				readOnly: false,
+				response: undefined,
+				activeRequestTab: 'params',
+				baseUrl: baseUrl.value.trim() || state.defaultBaseUrl
+			});
+			queuePersist();
+		}
 	});
 
 	document.getElementById('environment').addEventListener('click', () => {
@@ -300,6 +451,32 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 		}
 	});
 
+	function retargetRequest(previous) {
+		const oldBase = (previous || '').replace(/\/+$/, '');
+		const currentUrl = url.value;
+		if (!oldBase || !currentUrl.toLowerCase().startsWith(oldBase.toLowerCase())) {
+			return;
+		}
+		const suffix = currentUrl.slice(oldBase.length);
+		if (suffix && !['/', '?', '#'].includes(suffix.charAt(0))) {
+			return;
+		}
+		url.value = '{{baseUrl}}' + suffix;
+	}
+
+	document.body.addEventListener('input', queuePersist);
+	document.body.addEventListener('change', queuePersist);
+	document.body.addEventListener('click', event => {
+		if (event.target.closest('td.remove button')) {
+			queuePersist();
+		}
+	});
+	window.addEventListener('beforeunload', () => {
+		clearTimeout(persistTimer);
+		persistDraft();
+	});
+	persistDraft();
+
 	function humanSize(bytes) {
 		if (bytes < 1024) {
 			return bytes + ' B';
@@ -312,6 +489,7 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 
 	function showResponse(response) {
 		sending = false;
+		lastResponse = response;
 		document.getElementById('send').textContent = 'Send';
 		status.textContent = '';
 
@@ -356,6 +534,7 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 			row.append(nameCell, valueCell);
 			responseHeaders.appendChild(row);
 		}
+		queuePersist();
 	}
 
 	function showError(message) {

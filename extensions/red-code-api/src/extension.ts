@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 import { ApiRequest, normalizeRequest } from './model.js';
 import { PanelServices, RequestPanel } from './requestPanel.js';
 import { requestFromRoute, runPhpListRoutes } from './routes.js';
-import { addRequest } from './storage.js';
+import { addRequest, createCollection, readBaseUrlProfiles, saveBaseUrlProfile } from './storage.js';
 import { ApiNode, CollectionsTreeProvider } from './tree.js';
 import { listEnvironments, loadVariables } from './variables.js';
 
@@ -76,7 +76,10 @@ export function activate(context: vscode.ExtensionContext): void {
 		loadVariables: variables,
 		environment,
 		save,
-		selectEnvironment
+		selectEnvironment,
+		loadBaseUrlProfiles: () => readBaseUrlProfiles(workspaceRoot()),
+		saveBaseUrlProfile: (name, url) => saveBaseUrlProfile(workspaceRoot(), name, url),
+		loadSavedEndpoints: () => tree.savedEndpoints()
 	};
 
 	const panel = new RequestPanel(services);
@@ -101,18 +104,59 @@ export function activate(context: vscode.ExtensionContext): void {
 		}
 	}
 
+	async function newCollection(): Promise<void> {
+		const root = workspaceRoot();
+		if (!root) {
+			void vscode.window.showInformationMessage('Red Code API: open a folder before creating a collection.');
+			return;
+		}
+		const name = await vscode.window.showInputBox({
+			title: 'New API Collection',
+			prompt: 'Collection name. It is saved in .redcode/api/collections.',
+			validateInput: value => value.trim().length === 0 ? 'Enter a collection name.' : undefined
+		});
+		if (!name) {
+			return;
+		}
+		try {
+			await createCollection(root, name);
+			tree.refresh();
+		} catch (error) {
+			report(error);
+		}
+	}
+
+	async function duplicateRequest(node?: ApiNode): Promise<void> {
+		if (node && (node.kind === 'request' || node.kind === 'httpRequest')) {
+			await panel.show(
+				{ ...node.request, name: `${node.request.name} copy` },
+				`Copy of ${node.request.name}`,
+				false
+			);
+			return;
+		}
+		await panel.duplicateActive();
+	}
+
 	function phpPath(): string {
 		const configured = vscode.workspace.getConfiguration('redCode.laravel').get<string>('phpPath', '');
 		return configured.trim() || 'php';
 	}
 
 	context.subscriptions.push(
+		vscode.window.registerWebviewPanelSerializer('redCode.api.request', {
+			async deserializeWebviewPanel(webviewPanel, state) {
+				await panel.restore(webviewPanel, state);
+			}
+		}),
 		vscode.commands.registerCommand('redCode.api.refresh', () => tree.refresh()),
+		vscode.commands.registerCommand('redCode.api.newCollection', () => newCollection()),
 		vscode.commands.registerCommand('redCode.api.openRequest', (node?: ApiNode) => {
 			if (node) {
 				open(node);
 			}
 		}),
+		vscode.commands.registerCommand('redCode.api.duplicateRequest', (node?: ApiNode) => duplicateRequest(node)),
 		vscode.commands.registerCommand('redCode.api.newRequest', () => {
 			void panel.show(normalizeRequest({ name: 'New Request', url: '{{baseUrl}}/api/' }), 'Unsaved request', false);
 		}),
@@ -123,10 +167,9 @@ export function activate(context: vscode.ExtensionContext): void {
 		}),
 		vscode.commands.registerCommand('redCode.api.fetchCsrfCookie', async () => {
 			try {
-				const values = await variables();
-				const base = values.baseUrl ?? values.APP_URL;
+				const base = await panel.activeBaseUrl();
 				if (!base) {
-					void vscode.window.showWarningMessage('Red Code API: add APP_URL to .env, or set redCode.api.variables.baseUrl.');
+					void vscode.window.showWarningMessage('Red Code API: set a base URL in the active request tab or add APP_URL to .env.');
 					return;
 				}
 				await panel.fetchCsrf(`${base.replace(/\/+$/, '')}/`);

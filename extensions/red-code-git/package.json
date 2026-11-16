@@ -82,6 +82,11 @@
 					"maximum": 5000,
 					"description": "%graphPageSizeDescription%"
 				},
+				"redCode.git.graphAvatars.enabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "%graphAvatarsEnabledDescription%"
+				},
 				"redCode.git.blame.enabled": {
 					"type": "boolean",
 					"default": false,
@@ -93,7 +98,7 @@
 	"scripts": {
 		"compile": "node ./esbuild.mts",
 		"watch": "node ./esbuild.mts --watch",
-		"test": "tsc -p tsconfig.json && node --test out/test/graph.test.js out/test/log.test.js out/test/blame.test.js"
+		"test": "tsc -p tsconfig.json && node --test out/test/graph.test.js out/test/log.test.js out/test/blame.test.js out/test/avatars.test.js"
 	},
 	"devDependencies": {
 		"@types/node": "24.x"

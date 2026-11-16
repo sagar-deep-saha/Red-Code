@@ -17,7 +17,8 @@
 		}
 	},
 	"activationEvents": [
-		"onView:redCode.api.collections"
+		"onView:redCode.api.collections",
+		"onWebviewPanel:redCode.api.request"
 	],
 	"contributes": {
 		"viewsContainers": {
@@ -39,6 +40,12 @@
 		},
 		"commands": [
 			{
+				"command": "redCode.api.newCollection",
+				"title": "%newCollectionCommand%",
+				"category": "Red Code API",
+				"icon": "$(folder-library)"
+			},
+			{
 				"command": "redCode.api.newRequest",
 				"title": "%newRequestCommand%",
 				"category": "Red Code API",
@@ -48,6 +55,12 @@
 				"command": "redCode.api.newRequestFromRoute",
 				"title": "%newRequestFromRouteCommand%",
 				"category": "Red Code API"
+			},
+			{
+				"command": "redCode.api.duplicateRequest",
+				"title": "%duplicateRequestCommand%",
+				"category": "Red Code API",
+				"icon": "$(copy)"
 			},
 			{
 				"command": "redCode.api.selectEnvironment",
@@ -74,6 +87,11 @@
 		"menus": {
 			"view/title": [
 				{
+					"command": "redCode.api.newCollection",
+					"when": "view == redCode.api.collections",
+					"group": "navigation@0"
+				},
+				{
 					"command": "redCode.api.newRequest",
 					"when": "view == redCode.api.collections",
 					"group": "navigation@1"
@@ -93,9 +111,31 @@
 				{
 					"command": "redCode.api.newRequest",
 					"when": "view == redCode.api.collections && viewItem == redCode.api.collection"
+				},
+				{
+					"command": "redCode.api.duplicateRequest",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.request",
+					"group": "inline@2"
+				},
+				{
+					"command": "redCode.api.duplicateRequest",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.request"
+				}
+			],
+			"webview/title": [
+				{
+					"command": "redCode.api.duplicateRequest",
+					"when": "webviewId == redCode.api.request",
+					"group": "navigation"
 				}
 			],
 			"commandPalette": [
+				{
+					"command": "redCode.api.newCollection"
+				},
+				{
+					"command": "redCode.api.duplicateRequest"
+				},
 				{
 					"command": "redCode.api.refresh",
 					"when": "view == redCode.api.collections"
@@ -146,7 +186,7 @@
 	"scripts": {
 		"compile": "node ./esbuild.mts",
 		"watch": "node ./esbuild.mts --watch",
-		"test": "tsc -p tsconfig.json && node --test out/test/model.test.js out/test/variables.test.js out/test/cookies.test.js out/test/routes.test.js out/test/http.test.js"
+		"test": "tsc -p tsconfig.json && node --test out/test/model.test.js out/test/variables.test.js out/test/cookies.test.js out/test/routes.test.js out/test/http.test.js out/test/storage.test.js"
 	},
 	"devDependencies": {
 		"@types/node": "24.x"

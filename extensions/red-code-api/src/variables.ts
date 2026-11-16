@@ -10,6 +10,7 @@ import { parseDotEnv } from './model.js';
 export const API_FOLDER = path.join('.redcode', 'api');
 export const COLLECTIONS_FOLDER = path.join(API_FOLDER, 'collections');
 export const ENVIRONMENTS_FOLDER = path.join(API_FOLDER, 'environments');
+export const BASE_URLS_FILE = path.join(API_FOLDER, 'base-urls.json');
 
 export interface VariableSources {
 	readonly workspaceRoot: string | undefined;

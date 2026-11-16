@@ -45,6 +45,17 @@ export interface Collection {
 	requests: ApiRequest[];
 }
 
+export interface BaseUrlProfile {
+	name: string;
+	url: string;
+}
+
+export interface SavedEndpoint {
+	id: string;
+	collection: string;
+	request: ApiRequest;
+}
+
 export interface ResolvedRequest {
 	method: HttpMethod;
 	url: string;
