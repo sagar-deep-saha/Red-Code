@@ -5,7 +5,7 @@ Red Code is an independent Windows x64 build of the MIT-licensed
 development. It keeps the familiar VS Code layout, keybindings and extension model, and adds a
 small set of removable built-in extensions instead of patching the workbench.
 
-**Current release: 1.147.4** · [Download the installer](https://github.com/sagar-deep-saha/Red-Code/releases/latest) ·
+**Current release: 1.147.5** · [Download the installer](https://github.com/sagar-deep-saha/Red-Code/releases/latest) ·
 [Release notes](releases/README.md) · [Changelog](CHANGELOG.md)
 
 ## What Red Code adds

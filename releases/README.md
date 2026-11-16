@@ -18,8 +18,8 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | Next Red Code build (first cross-platform release) | `1.147.6` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist. The latest published build is `1.147.4`
-(`RedCode-Setup.exe`, 300,678,212 bytes, sha256 `f9647dbe…ee059b`).
+must not advertise a download that does not exist. The latest published build is `1.147.5`
+(`RedCode-Setup.exe`, 300,697,496 bytes, sha256 `29e69599…e1e955`).
 
 ## Platform coverage
 
