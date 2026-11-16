@@ -1,8 +1,20 @@
 {
 	"schemaVersion": 1,
 	"repository": "sagar-deep-saha/Red-Code",
-	"updatedAt": "2026-11-15T23:22:15.111Z",
+	"updatedAt": "2026-11-16T21:27:48.670Z",
 	"releases": [
+		{
+			"version": "1.147.5",
+			"date": "2026-11-16T21:27:48.649Z",
+			"prerelease": false,
+			"notes": "### API client\n\n- Add collections, persistent request tabs and a command to duplicate the active request.\n- Add editable base URL profiles and a dropdown for switching between saved endpoints.\n- Refresh the API Activity Bar icon with a transparent, theme-aware request/response design.\n\n### Git graph\n\n- Align the graph with GitLens-style branch, graph and commit-message columns.\n- Add optional commit-author avatars, disabled by default for privacy.\n\n### Workbench\n\n- Replace the editor's document watermark with Red Code branding across themes.\n- Refresh the Windows installer wizard artwork with the Red Code mark.\n\n### Platforms\n\n- This build ships Windows x64. From the next release, every build includes Windows, macOS and\n  Linux packages for each supported architecture, tested per platform, with `SHA256SUMS` and\n  per-platform install guides (`releases/platforms.md`).",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.5",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.5/RedCode-Setup.exe",
+				"sha256": "29e69599046a4769c05f420114dfa8da239d7b3424414e652288bce75be1e955",
+				"size": 300697496
+			}
+		},
 		{
 			"version": "1.147.4",
 			"date": "2026-11-15T23:22:15.097Z",
