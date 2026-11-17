@@ -20,7 +20,7 @@ import product from '../product.json' with { type: 'json' };
 import * as crypto from 'crypto';
 import * as cp from 'child_process';
 import * as i18n from './lib/i18n.ts';
-import { getProductionDependencies } from './lib/dependencies.ts';
+import { getProductionDependencies, toPackagedLayout } from './lib/dependencies.ts';
 import { config } from './lib/electron.ts';
 import { createAsar } from './lib/asar.ts';
 import minimist from 'minimist';
@@ -239,7 +239,7 @@ function packageTask(platform: string, arch: string, sourceFolderName: string, d
 		const jsFilter = util.filter(data => !data.isDirectory() && /\.js$/.test(data.path));
 		const root = path.resolve(path.join(import.meta.dirname, '..'));
 		const productionDependencies = getProductionDependencies(root);
-		const dependenciesSrc = productionDependencies.map(d => path.relative(root, d)).map(d => [`${d}/**`, `!${d}/**/{test,tests}/**`]).flat().concat('!**/*.mk');
+		const dependenciesSrc = productionDependencies.map(d => path.relative(root, d.source)).map(d => [`${d}/**`, `!${d}/**/{test,tests}/**`]).flat().concat('!**/*.mk');
 
 		const depFilterPattern = ['**', `!**/${config.version}/**`, '!**/bin/darwin-arm64-87/**', '!**/package-lock.json', '!**/yarn.lock'];
 		if (stripSourceMapsInPackagingTasks) {
@@ -247,6 +247,7 @@ function packageTask(platform: string, arch: string, sourceFolderName: string, d
 		}
 
 		const cleanedDeps = gulp.src(dependenciesSrc, { base: '.', dot: true })
+			.pipe(toPackagedLayout(productionDependencies))
 			.pipe(filter(depFilterPattern))
 			.pipe(util.cleanNodeModules(path.join(import.meta.dirname, '.moduleignore')))
 			.pipe(util.cleanNodeModules(path.join(import.meta.dirname, `.moduleignore.${process.platform}`)));
@@ -254,12 +255,13 @@ function packageTask(platform: string, arch: string, sourceFolderName: string, d
 		const copilotRuntimePrebuilds = gulp.src(getCopilotRuntimePrebuildFiles(platform, arch), { base: '.', dot: true, allowEmpty: true });
 		ensureOSProxyResolverPlatformPackage(platform, arch);
 		const osProxyResolverPlatformPackage = gulp.src(getOSProxyResolverPlatformFiles(platform, arch), { base: '.', dot: true, allowEmpty: true });
+		// `cleanedDeps` has already dropped dot files; keep those of the platform packages, such as SDK plugin manifests.
 		const deps = es.merge(cleanedDeps, copilotRuntimePrebuilds, osProxyResolverPlatformPackage)
-			.pipe(filter(getCopilotExcludeFilter(platform, arch)))
-			.pipe(filter(getCopilotTgrepExcludeFilter(platform, arch)))
-			.pipe(filter(getRipgrepExcludeFilter(platform, arch)))
-			.pipe(filter(getFoundryLocalExcludeFilter()))
-			.pipe(filter(getOSProxyResolverExcludeFilter(platform, arch)))
+			.pipe(filter(getCopilotExcludeFilter(platform, arch), { dot: true }))
+			.pipe(filter(getCopilotTgrepExcludeFilter(platform, arch), { dot: true }))
+			.pipe(filter(getRipgrepExcludeFilter(platform, arch), { dot: true }))
+			.pipe(filter(getFoundryLocalExcludeFilter(), { dot: true }))
+			.pipe(filter(getOSProxyResolverExcludeFilter(platform, arch), { dot: true }))
 			.pipe(jsFilter)
 			.pipe(util.rewriteSourceMappingURL(sourceMappingURLBase))
 			.pipe(jsFilter.restore)
@@ -510,26 +512,12 @@ async function stripAuthenticodeSignature(filePath: string): Promise<void> {
 	});
 }
 
-/** Windows binaries start with the `MZ` DOS header; other platforms' `.node` files do not. */
-async function isPortableExecutable(filePath: string): Promise<boolean> {
-	const handle = await fs.promises.open(filePath, 'r');
-	try {
-		const buffer = Buffer.alloc(2);
-		const { bytesRead } = await handle.read(buffer, 0, 2, 0);
-		return bytesRead === 2 && buffer[0] === 0x4d && buffer[1] === 0x5a;
-	} catch {
-		return false;
-	} finally {
-		await handle.close();
-	}
-}
-
 function patchWin32DependenciesTask(destinationFolderName: string) {
 	const cwd = path.join(path.dirname(root), destinationFolderName);
 
 	return async () => {
 		const versionedResourcesFolder = util.getVersionedResourcesFolder('win32', commit!);
-		const rawDeps = (await Promise.all([
+		const deps = (await Promise.all([
 			glob('**/*.node', { cwd, ignore: 'extensions/node_modules/@parcel/watcher/**' }),
 			glob('**/rg.exe', { cwd }),
 			glob('**/tgrep.exe', { cwd }),
@@ -537,14 +525,6 @@ function patchWin32DependenciesTask(destinationFolderName: string) {
 			// TODO@anthonykim1 Remove once @github/copilot ships OneAuthInterop.dll with complete version information.
 			glob('**/OneAuthInterop.dll', { cwd }),
 		])).flatMap(o => o);
-		// Packages such as @github/copilot ship native modules for every platform.
-		// rcedit only understands PE files, so stamp the Windows ones and leave the
-		// rest untouched.
-		const deps = await Promise.all(rawDeps.map(async dep => ({
-			dep,
-			isPe: await isPortableExecutable(path.join(cwd, dep))
-		})))
-			.then(entries => entries.filter(entry => entry.isPe).map(entry => entry.dep));
 		const packageJson = JSON.parse(await fs.promises.readFile(path.join(cwd, versionedResourcesFolder, 'resources', 'app', 'package.json'), 'utf8'));
 		const product = JSON.parse(await fs.promises.readFile(path.join(cwd, versionedResourcesFolder, 'resources', 'app', 'product.json'), 'utf8'));
 		const baseVersion = packageJson.version.replace(/-.*$/, '');

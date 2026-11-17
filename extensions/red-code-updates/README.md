@@ -25,14 +25,23 @@ else is ignored: the extension is deliberately unable to offer an unverifiable d
 			"notes": "API client and Git graph.",
 			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.4",
 			"installer": {
-				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.4/RedCode-Setup.exe",
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.6/RedCode-Setup.exe",
 				"sha256": "…64 hex characters…",
 				"size": 300678212
-			}
+			},
+			"installers": [
+				{ "arch": "x64", "url": "…/RedCode-Setup.exe", "sha256": "…", "size": 300678212 },
+				{ "arch": "arm64", "url": "…/RedCode-Setup-arm64.exe", "sha256": "…", "size": 298000000 }
+			]
 		}
 	]
 }
 ```
+
+`installer` is the single-installer form used up to `1.147.5`. Releases from `1.147.6` also list
+`installers`, one entry per architecture, and the extension downloads the one matching the running
+build: Windows on ARM prefers the `arm64` entry, x64 never takes an arm64 installer. A release with
+only `installer` still updates every architecture.
 
 The parser also accepts a top-level `installer` string (or `installerUrl` / `url` / `hash`) and the
 GitHub API's `html_url` / `body`, so a hand-written or API-shaped feed works. Relative `installer`

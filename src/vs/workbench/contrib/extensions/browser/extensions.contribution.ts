@@ -30,7 +30,7 @@ import { EXTENSION_INSTALL_SOURCE_CONTEXT, ExtensionInstallSource, ExtensionRequ
 import { areSameExtensions, getIdAndVersion } from '../../../../platform/extensionManagement/common/extensionManagementUtil.js';
 import { ExtensionStorageService } from '../../../../platform/extensionManagement/common/extensionStorage.js';
 import { IExtensionRecommendationNotificationService } from '../../../../platform/extensionRecommendations/common/extensionRecommendations.js';
-import { EXTENSION_CATEGORIES, ExtensionType } from '../../../../platform/extensions/common/extensions.js';
+import { EXTENSION_CATEGORIES, ExtensionType, MANAGE_EXTENSION_COMMAND_ID } from '../../../../platform/extensions/common/extensions.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
 import { IInstantiationService, ServicesAccessor } from '../../../../platform/instantiation/common/instantiation.js';
@@ -312,7 +312,10 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration)
 			[VerifyExtensionSignatureConfigKey]: {
 				type: 'boolean',
 				description: localize('extensions.verifySignature', "When enabled, extensions are verified to be signed before getting installed."),
-				default: true,
+				// Red Code installs from Open VSX and does not ship Microsoft's extension signature
+				// trust chain, so verification can never succeed here. Leaving it enabled turns every
+				// signed extension into a blocking "Install Anyway" prompt.
+				default: false,
 				scope: ConfigurationScope.APPLICATION,
 				included: isNative
 			},
@@ -393,7 +396,7 @@ const jsonRegistry = <jsonContributionRegistry.IJSONContributionRegistry>Registr
 jsonRegistry.registerSchema(ExtensionsConfigurationSchemaId, ExtensionsConfigurationSchema);
 
 // Register Commands
-CommandsRegistry.registerCommand('_extensions.manage', (accessor: ServicesAccessor, extensionId: string, tab?: ExtensionEditorTab, preserveFocus?: boolean, feature?: string) => {
+CommandsRegistry.registerCommand(MANAGE_EXTENSION_COMMAND_ID, (accessor: ServicesAccessor, extensionId: string, tab?: ExtensionEditorTab, preserveFocus?: boolean, feature?: string) => {
 	const extensionService = accessor.get(IExtensionsWorkbenchService);
 	const extension = extensionService.local.find(e => areSameExtensions(e.identifier, { id: extensionId }));
 	if (extension) {
@@ -412,7 +415,7 @@ CommandsRegistry.registerCommand('extension.open', async (accessor: ServicesAcce
 		return extensionService.open(extension, { tab, preserveFocus, feature, sideByside });
 	}
 
-	return commandService.executeCommand('_extensions.manage', extensionId, tab, preserveFocus, feature);
+	return commandService.executeCommand(MANAGE_EXTENSION_COMMAND_ID, extensionId, tab, preserveFocus, feature);
 });
 
 CommandsRegistry.registerCommand({

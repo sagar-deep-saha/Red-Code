@@ -131,6 +131,47 @@ test('GitHub releases become feed entries only when a digest exists', () => {
 	assert.deepEqual(feedFromGitHubReleases([], false), { releases: [] });
 });
 
+test('a two-architecture release picks the installer for the running architecture', () => {
+	const feed = JSON.stringify({
+		releases: [{
+			version: '1.147.6',
+			installer: { url: 'https://example.test/RedCode-Setup.exe', sha256: SHA, size: 10 },
+			installers: [
+				{ arch: 'x64', url: 'https://example.test/RedCode-Setup.exe', sha256: SHA, size: 10 },
+				{ arch: 'arm64', url: 'https://example.test/RedCode-Setup-arm64.exe', sha256: 'c'.repeat(64), size: 20 }
+			]
+		}]
+	});
+
+	const x64 = parseFeed(feed);
+	const arm64 = parseFeed(feed, undefined, 'arm64');
+	assert.ok(x64 && arm64);
+	assert.equal(x64.releases[0].installerUrl, 'https://example.test/RedCode-Setup.exe');
+	assert.equal(x64.releases[0].size, 10);
+	assert.equal(arm64.releases[0].installerUrl, 'https://example.test/RedCode-Setup-arm64.exe');
+	assert.equal(arm64.releases[0].sha256, 'c'.repeat(64));
+	assert.equal(arm64.releases[0].size, 20);
+
+	// A single-installer release still updates both architectures.
+	const legacy = parseFeed(JSON.stringify({ releases: [{ version: '1.147.5', installer: 'https://example.test/old.exe', sha256: SHA }] }), undefined, 'arm64');
+	assert.equal(legacy?.releases[0].installerUrl, 'https://example.test/old.exe');
+});
+
+test('GitHub releases choose the arm64 asset on Windows on ARM', () => {
+	const release = {
+		tag_name: 'v1.147.6',
+		assets: [
+			{ name: 'RedCode-Setup.exe', browser_download_url: 'https://example.test/x64.exe', digest: `sha256:${SHA}`, size: 10 },
+			{ name: 'RedCode-Setup-arm64.exe', browser_download_url: 'https://example.test/arm64.exe', digest: `sha256:${'d'.repeat(64)}`, size: 20 },
+			{ name: 'SHA256SUMS', browser_download_url: 'https://example.test/SHA256SUMS' }
+		]
+	};
+
+	assert.equal(feedFromGitHubReleases([release], false).releases[0].installerUrl, 'https://example.test/x64.exe');
+	assert.equal(feedFromGitHubReleases([release], false, 'arm64').releases[0].installerUrl, 'https://example.test/arm64.exe');
+	assert.equal(feedFromGitHubReleases([release], false, 'arm64').releases[0].size, 20);
+});
+
 test('merging feeds prefers the manifest copy of a version', () => {
 	const base = parseFeed(JSON.stringify({ releases: [{ version: '1.147.2', installer: 'https://example.test/a.exe', sha256: 'b'.repeat(64) }] }));
 	const extra = parseFeed(JSON.stringify({ releases: [{ version: '1.147.2', installer: 'https://example.test/a.exe', sha256: SHA }] }));

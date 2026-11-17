@@ -5,6 +5,26 @@ patch for each Red Code build. `1.147.0` was built and installed locally but nev
 has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
+## [1.147.6] — 2026-11-17
+
+### Upstream VS Code 1.147
+
+- Track the VS Code `release/1.147` line, bringing the editor fixes, security patches and
+  extension-host changes that landed after `1.147.5`.
+- Electron 43.8.9, xterm 6.1.0, Copilot SDK 1.0.33 and bundled `ms-vscode.js-debug` 1.140.1.
+- The built-in Copilot extension is rebuilt from the stock VS Code 1.147 sources, so Copilot,
+  Copilot Chat and agent sessions match upstream.
+
+### Extensions
+
+- Installing from Open VSX no longer prompts **Install Anyway (Don't Verify Signature)**. Signature
+  verification is off by default because Red Code cannot satisfy Microsoft's trust chain; the
+  `extensions.verifySignature` setting remains available.
+
+### Platforms
+
+- This release ships Windows x64 and Windows arm64 installers. macOS and Linux are not offered.
+
 ## [1.147.5] — 2026-11-16
 
 ### API client
@@ -25,9 +45,9 @@ has no download; `1.147.1` is the first published Red Code build.
 
 ### Platforms
 
-- This build ships Windows x64. From the next release, every build includes Windows, macOS and
-  Linux packages for each supported architecture, tested per platform, with `SHA256SUMS` and
-  per-platform install guides (`releases/platforms.md`).
+- This build ships Windows x64. The following release adds a Windows arm64 installer, and both
+  architectures are built and tested from `1.147.6` onward. macOS and Linux are not offered
+  (`releases/platforms.md`).
 
 ## [1.147.4] — 2026-11-16
 

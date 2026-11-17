@@ -1,10 +1,36 @@
 {
 	"releases": [
 		{
+			"version": "1.147.6",
+			"date": "2026-11-17T07:44:44.417Z",
+			"prerelease": false,
+			"notes": "### Upstream VS Code 1.147\n\n- Track the VS Code `release/1.147` line, bringing the editor fixes, security patches and\n  extension-host changes that landed after `1.147.5`.\n- Electron 43.8.9, xterm 6.1.0, Copilot SDK 1.0.33 and bundled `ms-vscode.js-debug` 1.140.1.\n- The built-in Copilot extension is rebuilt from the stock VS Code 1.147 sources, so Copilot,\n  Copilot Chat and agent sessions match upstream.\n\n### Extensions\n\n- Installing from Open VSX no longer prompts **Install Anyway (Don't Verify Signature)**. Signature\n  verification is off by default because Red Code cannot satisfy Microsoft's trust chain; the\n  `extensions.verifySignature` setting remains available.\n\n### Platforms\n\n- This release ships Windows x64 and Windows arm64 installers. macOS and Linux are not offered.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.6",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.6/RedCode-Setup.exe",
+				"sha256": "2ad6192b0abe00302ec7d6ce4808bd79e9131587b94487dbbc572a163d7c8f8e",
+				"size": 321585859
+			},
+			"installers": [
+				{
+					"arch": "x64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.6/RedCode-Setup.exe",
+					"sha256": "2ad6192b0abe00302ec7d6ce4808bd79e9131587b94487dbbc572a163d7c8f8e",
+					"size": 321585859
+				},
+				{
+					"arch": "arm64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.6/RedCode-Setup-arm64.exe",
+					"sha256": "f4ce54601a2c80d202b3044cba9f3dd80c1633808887fd2ebace762700728d90",
+					"size": 316558663
+				}
+			]
+		},
+		{
 			"version": "1.147.5",
 			"date": "2026-11-16T21:27:48.649Z",
 			"prerelease": false,
-			"notes": "### API client\n\n- Add collections, persistent request tabs and a command to duplicate the active request.\n- Add editable base URL profiles and a dropdown for switching between saved endpoints.\n- Refresh the API Activity Bar icon with a transparent, theme-aware request/response design.\n\n### Git graph\n\n- Align the graph with GitLens-style branch, graph and commit-message columns.\n- Add optional commit-author avatars, disabled by default for privacy.\n\n### Workbench\n\n- Replace the editor's document watermark with Red Code branding across themes.\n- Refresh the Windows installer wizard artwork with the Red Code mark.\n\n### Platforms\n\n- This build ships Windows x64. From the next release, every build includes Windows, macOS and\n  Linux packages for each supported architecture, tested per platform, with `SHA256SUMS` and\n  per-platform install guides (`releases/platforms.md`).",
+			"notes": "### API client\n\n- Add collections, persistent request tabs and a command to duplicate the active request.\n- Add editable base URL profiles and a dropdown for switching between saved endpoints.\n- Refresh the API Activity Bar icon with a transparent, theme-aware request/response design.\n\n### Git graph\n\n- Align the graph with GitLens-style branch, graph and commit-message columns.\n- Add optional commit-author avatars, disabled by default for privacy.\n\n### Workbench\n\n- Replace the editor's document watermark with Red Code branding across themes.\n- Refresh the Windows installer wizard artwork with the Red Code mark.\n\n### Platforms\n\n- This build ships Windows x64. The plan to add macOS and Linux packages was dropped after this\n  release: Red Code stays on Windows, and `1.147.6` onwards ships Windows x64 and arm64 with a\n  `SHA256SUMS` file. No macOS or Linux package has been or will be published.",
 			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.5",
 			"installer": {
 				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.5/RedCode-Setup.exe",

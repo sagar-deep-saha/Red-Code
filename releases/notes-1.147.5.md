@@ -19,7 +19,7 @@ Download `RedCode-Setup.exe` below. Existing installs with the updater will find
 
 ### Platforms
 
-- `1.147.5` is a Windows x64 build. Starting with the next release, Red Code ships compiled and
-  tested packages for Windows, macOS and Linux on every supported architecture, with per-platform
-  install guides, a `SHA256SUMS` file and matching per-platform release notes.
+- `1.147.5` is a Windows x64 build. The plan to add macOS and Linux packages was dropped after
+  this release: Red Code stays on Windows, and `1.147.6` onwards ships Windows x64 and arm64 with a
+  `SHA256SUMS` file. No macOS or Linux package has been or will be published.
 

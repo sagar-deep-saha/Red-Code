@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { describeFeedFailure, feedFromGitHubReleases, mergeFeeds, parseFeed, pickRelease, ReleaseInfo, UpdateFeed } from './feed.js';
+import { describeFeedFailure, feedFromGitHubReleases, InstallerArch, mergeFeeds, parseFeed, pickRelease, ReleaseInfo, UpdateFeed } from './feed.js';
 
 const LAST_CHECK_KEY = 'redCode.updates.lastCheck';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -156,9 +156,14 @@ async function loadFeed(includePrerelease: boolean): Promise<UpdateFeed | undefi
 			throw new Error('redCode.updates.feedUrl must be an HTTPS URL.');
 		}
 		const text = await fetchText(feedUrl);
-		return parseFeed(text, feedUrl);
+		return parseFeed(text, feedUrl, installerArch());
 	}
 	return loadGitHubFeed(repositoryName(), includePrerelease);
+}
+
+/** The architecture of this Red Code install, which only ships Windows x64 and arm64. */
+function installerArch(): InstallerArch {
+	return process.arch === 'arm64' ? 'arm64' : 'x64';
 }
 
 interface GitHubAsset {
@@ -194,7 +199,7 @@ async function loadGitHubFeed(repository: string, includePrerelease: boolean): P
 	}
 
 	const json: unknown = await response.json();
-	const derived = feedFromGitHubReleases(json, includePrerelease);
+	const derived = feedFromGitHubReleases(json, includePrerelease, installerArch());
 	const manifests: ReleaseInfo[] = [];
 
 	// A manifest published with the release carries the exact installer hash and
@@ -208,7 +213,7 @@ async function loadGitHubFeed(repository: string, includePrerelease: boolean): P
 			continue;
 		}
 		try {
-			const parsed = parseFeed(await fetchText(url), url);
+			const parsed = parseFeed(await fetchText(url), url, installerArch());
 			if (parsed) {
 				manifests.push(...parsed.releases);
 			}

@@ -18,13 +18,20 @@
  *     --installer .build\win32-x64\user-setup\VSCodeSetup.exe \
  *     --package-dir ..\VSCode-win32-x64 \
  *     --asset-name RedCode-Setup.exe \
- *     --version 1.147.2 \
- *     --tag v1.147.2 \
+ *     --arm64-installer .build\win32-arm64\user-setup\VSCodeSetup.exe \
+ *     --arm64-package-dir ..\VSCode-win32-arm64 \
+ *     --arm64-asset-name RedCode-Setup-arm64.exe \
+ *     --sha256sums ..\SHA256SUMS \
+ *     --version 1.147.6 \
+ *     --tag v1.147.6 \
  *     --repository sagar-deep-saha/Red-Code
  *
  * --asset-name is the file name the installer is uploaded as. It defaults to the
  * installer's own file name and is used to build the download URL, so the feed
  * keeps working when the local VSCodeSetup.exe is published as RedCode-Setup.exe.
+ * The arm64 equivalents are optional for versions before the two-architecture
+ * standard, and required from 1.147.6. `installer` always carries the x64 build so
+ * Red Code 1.147.5 and older can still read the feed.
  */
 
 import { createHash } from 'node:crypto';
@@ -121,6 +128,84 @@ async function readJson(file, fallback) {
 	}
 }
 
+/**
+ * Hashes one installer, checks that the packaged app behind it reports the
+ * release version, and resolves the asset name and download URL. `arch` only
+ * shapes defaults and messages; callers pass the explicit values for arm64.
+ */
+async function recordInstaller({ arch, installerArg, sha256Arg, sizeArg, packageDirArg, assetNameArg, urlArg, repository, tag, version }) {
+	const label = arch === 'arm64' ? 'arm64 installer' : 'installer';
+
+	let installerPath;
+	let sha256;
+	let size;
+	if (typeof installerArg === 'string') {
+		installerPath = path.resolve(repoRoot, installerArg);
+		const info = await stat(installerPath).catch(() => undefined);
+		if (!info || !info.isFile()) {
+			fail(`${label} not found: ${installerPath}`);
+		}
+		size = info.size;
+		console.log(`Hashing ${installerPath} (${(size / (1024 * 1024)).toFixed(1)} MB)…`);
+		sha256 = await hashFile(installerPath);
+	} else {
+		sha256 = String(sha256Arg ?? '').toLowerCase();
+		size = Number(sizeArg ?? 0);
+		if (!/^[a-f0-9]{64}$/.test(sha256) || !Number.isFinite(size) || size <= 0) {
+			fail(`provide the ${label} file, or both its --sha256 and --size.`);
+		}
+	}
+
+	if (installerPath) {
+		const candidates = [
+			typeof packageDirArg === 'string' ? path.resolve(repoRoot, packageDirArg) : undefined,
+			path.dirname(installerPath),
+			path.resolve(path.dirname(installerPath), '..')
+		].filter(Boolean);
+		let packagedRoot;
+		let packagedVersion;
+		for (const candidate of candidates) {
+			const productJson = path.join(candidate, 'resources', 'app', 'product.json');
+			if ((await stat(productJson).catch(() => undefined))?.isFile()) {
+				packagedRoot = candidate;
+				packagedVersion = (await readJson(productJson, {})).version;
+				break;
+			}
+		}
+		if (packagedVersion === undefined) {
+			console.warn(`release-manifest: found no packaged product.json behind the ${label} to verify the built version against.`);
+		} else if (packagedVersion !== version) {
+			fail(`the ${label} package at ${packagedRoot} reports version ${packagedVersion} but this release is ${version}; rebuild before recording.`);
+		} else {
+			console.log(`Verified ${label} packaged version ${packagedVersion} in ${path.relative(repoRoot, packagedRoot)}.`);
+		}
+	}
+
+	const assetName = typeof assetNameArg === 'string'
+		? assetNameArg.trim()
+		: installerPath
+			? path.basename(installerPath)
+			: `RedCode-Setup${arch === 'arm64' ? '-arm64' : ''}-${version}.exe`;
+	if (!/^[A-Za-z0-9._-]+$/.test(assetName)) {
+		fail(`the ${label} asset name must be a plain file name such as RedCode-Setup.exe.`);
+	}
+	if (!/^RedCode-Setup.*\.exe$/i.test(assetName)) {
+		console.warn(`release-manifest: ${assetName} does not match RedCode-Setup*.exe; upload the ${label} under the name recorded in the feed.`);
+	}
+	if (installerPath && assetName !== path.basename(installerPath)) {
+		console.log(`Publishing ${path.basename(installerPath)} as ${assetName}.`);
+	}
+
+	const url = typeof urlArg === 'string'
+		? urlArg
+		: `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;
+	if (!/^https:\/\//i.test(url)) {
+		fail(`the ${label} URL must use HTTPS.`);
+	}
+
+	return { assetName, url, sha256, size };
+}
+
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
 	const version = String(args.version ?? '').trim();
@@ -140,74 +225,42 @@ async function main() {
 	const extensionChangelog = path.join(repoRoot, 'extensions', 'red-code-updates', 'CHANGELOG.md');
 	const changelogFile = path.resolve(repoRoot, String(args.changelog ?? 'CHANGELOG.md'));
 
-	let installerPath;
-	let sha256;
-	let size;
-	if (typeof args.installer === 'string') {
-		installerPath = path.resolve(repoRoot, args.installer);
-		const info = await stat(installerPath).catch(() => undefined);
-		if (!info || !info.isFile()) {
-			fail(`installer not found: ${installerPath}`);
-		}
-		size = info.size;
-		console.log(`Hashing ${installerPath} (${(size / (1024 * 1024)).toFixed(1)} MB)…`);
-		sha256 = await hashFile(installerPath);
-	} else {
-		sha256 = String(args.sha256 ?? '').toLowerCase();
-		size = Number(args.size ?? 0);
-		if (!/^[a-f0-9]{64}$/.test(sha256) || !Number.isFinite(size) || size <= 0) {
-			fail('provide --installer, or both --sha256 and --size.');
-		}
-	}
-
 	const rootPackage = await readJson(path.join(repoRoot, 'package.json'), {});
 	if (rootPackage.version !== version) {
 		fail(`package.json is ${rootPackage.version} but --version is ${version}; bump package.json before recording a release.`);
 	}
 
-	if (installerPath) {
-		const candidates = [
-			typeof args['package-dir'] === 'string' ? path.resolve(repoRoot, args['package-dir']) : undefined,
-			path.dirname(installerPath),
-			path.resolve(path.dirname(installerPath), '..')
-		].filter(Boolean);
-		let packagedRoot;
-		let packagedVersion;
-		for (const candidate of candidates) {
-			const productJson = path.join(candidate, 'resources', 'app', 'product.json');
-			if ((await stat(productJson).catch(() => undefined))?.isFile()) {
-				packagedRoot = candidate;
-				packagedVersion = (await readJson(productJson, {})).version;
-				break;
-			}
-		}
-		if (packagedVersion === undefined) {
-			console.warn('release-manifest: found no packaged product.json to verify the built version against.');
-		} else if (packagedVersion !== version) {
-			fail(`the package at ${packagedRoot} reports version ${packagedVersion} but this release is ${version}; rebuild before recording.`);
-		} else {
-			console.log(`Verified packaged version ${packagedVersion} in ${path.relative(repoRoot, packagedRoot)}.`);
-		}
-	}
+	const x64 = await recordInstaller({
+		arch: 'x64',
+		installerArg: args.installer,
+		sha256Arg: args.sha256,
+		sizeArg: args.size,
+		packageDirArg: args['package-dir'],
+		assetNameArg: args['asset-name'],
+		urlArg: args['installer-url'],
+		repository,
+		tag,
+		version
+	});
 
-	const assetName = typeof args['asset-name'] === 'string'
-		? args['asset-name'].trim()
-		: installerPath ? path.basename(installerPath) : `RedCode-Setup-${version}.exe`;
-	if (!/^[A-Za-z0-9._-]+$/.test(assetName)) {
-		fail('--asset-name must be a plain file name such as RedCode-Setup.exe.');
-	}
-	if (!/^RedCode-Setup.*\.exe$/i.test(assetName)) {
-		console.warn(`release-manifest: ${assetName} does not match RedCode-Setup*.exe; upload the installer under the name recorded in the feed.`);
-	}
-	if (installerPath && assetName !== path.basename(installerPath)) {
-		console.log(`Publishing ${path.basename(installerPath)} as ${assetName}.`);
-	}
+	let arm64;
 
-	const installerUrl = typeof args['installer-url'] === 'string'
-		? args['installer-url']
-		: `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;
-	if (!/^https:\/\//i.test(installerUrl)) {
-		fail('--installer-url must use HTTPS.');
+	const wantsArm64 = typeof args['arm64-installer'] === 'string' || typeof args['arm64-sha256'] === 'string';
+	if (wantsArm64) {
+		arm64 = await recordInstaller({
+			arch: 'arm64',
+			installerArg: args['arm64-installer'],
+			sha256Arg: args['arm64-sha256'],
+			sizeArg: args['arm64-size'],
+			packageDirArg: args['arm64-package-dir'],
+			assetNameArg: args['arm64-asset-name'],
+			urlArg: args['arm64-installer-url'],
+			repository,
+			tag,
+			version
+		});
+	} else if (compareVersions(version, '1.147.6') >= 0) {
+		console.warn(`release-manifest: no --arm64-installer given, but ${version} must ship Windows arm64 as well.`);
 	}
 
 	const changelog = await readFile(changelogFile, 'utf8').catch(() => '');
@@ -224,12 +277,19 @@ async function main() {
 		prerelease: version.includes('-'),
 		notes,
 		pageUrl: `https://github.com/${repository}/releases/tag/${encodeURIComponent(tag)}`,
+		// `installer` stays the x64 build so Red Code 1.147.5 and older can still update.
 		installer: {
-			url: installerUrl,
-			sha256,
-			size
+			url: x64.url,
+			sha256: x64.sha256,
+			size: x64.size
 		}
 	};
+	if (arm64) {
+		entry.installers = [
+			{ arch: 'x64', url: x64.url, sha256: x64.sha256, size: x64.size },
+			{ arch: 'arm64', url: arm64.url, sha256: arm64.sha256, size: arm64.size }
+		];
+	}
 
 	const history = await readJson(historyFile, { releases: [] });
 	const releases = Array.isArray(history.releases) ? history.releases.filter(release => release.version !== version) : [];
@@ -251,13 +311,24 @@ async function main() {
 		await copyFile(changelogFile, extensionChangelog);
 	}
 
+	const recorded = [x64, ...(arm64 ? [arm64] : [])];
+	if (typeof args.sha256sums === 'string') {
+		const sumsFile = path.resolve(repoRoot, args.sha256sums);
+		await mkdir(path.dirname(sumsFile), { recursive: true });
+		await writeFile(sumsFile, recorded.map(item => `${item.sha256.toUpperCase()} *${item.assetName}\n`).join(''), 'utf8');
+		console.log(`Wrote ${path.relative(repoRoot, sumsFile)}.`);
+	}
+
 	console.log(`Recorded ${version}`);
-	console.log(`  installer : ${installerUrl}`);
-	console.log(`  sha256    : ${sha256}`);
-	console.log(`  size      : ${size} bytes`);
-	console.log(`  history   : ${path.relative(repoRoot, historyFile)}`);
-	console.log(`  feed      : ${path.relative(repoRoot, feedFile)}`);
-	console.log(`  next      : upload ${assetName} and ${path.basename(feedFile)} to release ${tag}`);
+	for (const item of recorded) {
+		const arch = item === x64 ? 'x64' : 'arm64';
+		console.log(`  ${arch.padEnd(5)} : ${item.url}`);
+		console.log(`  ${' '.repeat(5)}   sha256 ${item.sha256}`);
+		console.log(`  ${' '.repeat(5)}   size   ${item.size} bytes`);
+	}
+	console.log(`  history : ${path.relative(repoRoot, historyFile)}`);
+	console.log(`  feed    : ${path.relative(repoRoot, feedFile)}`);
+	console.log(`  next    : upload ${recorded.map(item => item.assetName).join(', ')} and ${path.basename(feedFile)} to release ${tag}`);
 }
 
 await main();

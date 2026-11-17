@@ -36,14 +36,34 @@ offered when `redCode.updates.includePrerelease` is on.
 ## Releasing
 
 1. Bump `version` in `package.json` and add a section to `CHANGELOG.md`.
-2. Build the app and the installer:
+2. Build the app and the installers for both architectures:
 
    ```powershell
    $env:PATH = "C:\Users\sagar\.config\herd\bin\nvm\v24.22.1;C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64;$env:PATH"
    corepack pnpm@12.16.0 run gulp vscode-win32-x64
    corepack pnpm@12.16.0 run gulp vscode-win32-x64-inno-updater
    corepack pnpm@12.16.0 run gulp vscode-win32-x64-user-setup
+
+   corepack pnpm@12.16.0 run gulp vscode-win32-arm64
+   corepack pnpm@12.16.0 run gulp vscode-win32-arm64-inno-updater
+   corepack pnpm@12.16.0 run gulp vscode-win32-arm64-user-setup
    ```
+
+   Build the two trees sequentially and remove the first one after it is recorded; each tree is
+   several GB. `VSCode-win32-arm64` is a real arm64 build (Electron arm64 plus arm64 native
+   modules), not the x64 tree renamed.
+
+   If `esbuild-bundle-*` aborts with `Build failed: Error: The service was stopped`, the esbuild
+   service ran out of memory next to the extension bundling. Build the desktop bundle on its own and
+   then package from it, which skips the failing step:
+
+   ```powershell
+   node build/next/index.ts bundle --out out-vscode --target desktop --nls
+   corepack pnpm@12.16.0 run gulp vscode-win32-arm64-ci
+   ```
+
+   `vscode-win32-<arch>-ci` skips recompiling the core and packages whatever is already in
+   `out-vscode`.
 
    `vscode-win32-x64-inno-updater` copies `inno_updater.exe` and `vcruntime140.dll` into
    `<app tree>\tools\` and stamps the Red Code icon on the updater. The setup task does not
@@ -67,21 +87,29 @@ offered when `redCode.updates.includePrerelease` is on.
      --installer .build\win32-x64\user-setup\VSCodeSetup.exe `
      --package-dir ..\VSCode-win32-x64 `
      --asset-name RedCode-Setup.exe `
-     --version 1.147.5 --tag v1.147.5 --repository sagar-deep-saha/Red-Code
+     --arm64-installer .build\win32-arm64\user-setup\VSCodeSetup.exe `
+     --arm64-package-dir ..\VSCode-win32-arm64 `
+     --arm64-asset-name RedCode-Setup-arm64.exe `
+     --sha256sums ..\SHA256SUMS `
+     --version 1.147.6 --tag v1.147.6 --repository sagar-deep-saha/Red-Code
    ```
 
-   This hashes the installer, appends to `releases/versions.json`, writes
-   `releases/redcode-updates.json` and copies `CHANGELOG.md` into the updater extension.
+   This hashes both installers, appends to `releases/versions.json`, writes
+   `releases/redcode-updates.json`, writes `SHA256SUMS` and copies `CHANGELOG.md` into the updater
+   extension. From `1.147.6` the record carries `installers: [{ arch: "x64" }, { arch: "arm64" }]`;
+   `installer` keeps pointing at the x64 build so Red Code 1.147.5 and older can still update.
 
-   `--asset-name` is the file name the installer is uploaded as, and it is the name the feed
-   records, so the download URL cannot point at an asset the release does not carry.
+   `--asset-name` / `--arm64-asset-name` are the file names the installers are uploaded as, and they
+   are the names the feed records, so a download URL cannot point at an asset the release does not
+   carry.
 
    The record is only written when the version in `package.json` and the `product.json` inside
    the packaged app both match `--version`. A stale build tree therefore fails here instead of
    being published and then reporting an older version after an update.
 
-   `--package-dir` must point at the app tree the installer was built from; without it the setup
-   output folder contains no `product.json` and the manifest can only warn instead of verifying.
+   `--package-dir` / `--arm64-package-dir` must point at the app tree each installer was built from;
+   without it the setup output folder contains no `product.json` and the manifest can only warn
+   instead of verifying.
 
    If the repository lives under a deep path, Inno Setup cannot stat bundled files
    whose full path passes 260 characters (Copilot's nested `node_modules` does this).
@@ -100,21 +128,26 @@ offered when `redCode.updates.includePrerelease` is on.
    version, and the release must be built and recorded from that tree; never point
    `--package-dir` at a tree that was not the installer source.
 
-4. Publish the GitHub release and attach both files:
+4. Publish the GitHub release and attach every artifact:
 
    ```powershell
-   git tag v1.147.5
-   git push origin v1.147.5
+   git tag v1.147.6
+   git push origin v1.147.6
    New-Item -ItemType HardLink -Path "$env:TEMP\RedCode-Setup.exe" `
      -Target (Resolve-Path '.build\win32-x64\user-setup\VSCodeSetup.exe').Path
-   gh release create v1.147.5 "$env:TEMP\RedCode-Setup.exe" "releases\redcode-updates.json" `
-     --repo sagar-deep-saha/Red-Code --verify-tag --title "Red Code 1.147.5" `
-     --notes-file "releases\notes-1.147.5.md"
+   New-Item -ItemType HardLink -Path "$env:TEMP\RedCode-Setup-arm64.exe" `
+     -Target (Resolve-Path '.build\win32-arm64\user-setup\VSCodeSetup.exe').Path
+   gh release create v1.147.6 "$env:TEMP\RedCode-Setup.exe" "$env:TEMP\RedCode-Setup-arm64.exe" `
+     "releases\redcode-updates.json" "SHA256SUMS" `
+     --repo sagar-deep-saha/Red-Code --verify-tag --title "Red Code 1.147.6" `
+     --notes-file "releases\notes-1.147.6.md"
    ```
 
-   The updater accepts any asset named `RedCode-Setup*.exe`. It reads the SHA-256 from
-   `redcode-updates.json` first, and falls back to the digest GitHub reports for the EXE.
-   Upload the installer under the same name that was passed as `--asset-name`.
+   The updater accepts any asset named `RedCode-Setup*.exe` and picks the one for the running
+   architecture: arm64 prefers `RedCode-Setup-arm64.exe`, x64 never takes an arm64 build. It reads
+   the SHA-256 from `redcode-updates.json` first, and falls back to the digest GitHub reports for
+   the EXE. Upload each installer under the same name that was passed as `--asset-name` /
+   `--arm64-asset-name`.
 
    **`path#Name` sets the asset label, not its file name.** Current `gh` uploads the file under
    its local name and only records `Name` in the label field, so
