@@ -49,6 +49,7 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 	private readonly changed = new vscode.EventEmitter<ApiNode | undefined>();
 	private readonly collections = new Map<string, Collection>();
 	private data: TreeData = { collections: [], httpFiles: [] };
+	private loaded = false;
 
 	readonly onDidChangeTreeData = this.changed.event;
 
@@ -59,11 +60,15 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 
 	refresh(): void {
 		this.collections.clear();
+		this.loaded = false;
 		this.load().then(() => this.changed.fire(undefined), () => this.changed.fire(undefined));
 	}
 
-	/** Loads the tree data once so `findCollection` can answer before the view is opened. */
+	/** Scans the workspace once per refresh; later callers reuse the cached node list. */
 	async load(): Promise<TreeData> {
+		if (this.loaded) {
+			return this.data;
+		}
 		const collections: CollectionNode[] = [];
 		const httpFiles: HttpFileNode[] = [];
 		const seen = new Set<string>();
@@ -96,6 +101,7 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 		}
 
 		this.data = { collections, httpFiles: httpFiles.sort((a, b) => a.relativePath.localeCompare(b.relativePath)) };
+		this.loaded = true;
 		return this.data;
 	}
 
@@ -115,7 +121,12 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 	}
 
 	async savedEndpoints(): Promise<SavedEndpoint[]> {
-		const data = await this.load();
+		let data: TreeData;
+		try {
+			data = await this.load();
+		} catch {
+			return [];
+		}
 		const endpoints: SavedEndpoint[] = [];
 		for (const node of data.collections) {
 			try {
@@ -130,6 +141,11 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 			}
 		}
 		return endpoints;
+	}
+
+	/** The request a saved-endpoint id points at, or `undefined` when the file changed underneath. */
+	async endpoint(id: string): Promise<SavedEndpoint | undefined> {
+		return (await this.savedEndpoints()).find(endpoint => endpoint.id === id);
 	}
 
 	getTreeItem(node: ApiNode): vscode.TreeItem {
@@ -163,7 +179,7 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 			case 'httpRequest': {
 				const item = new vscode.TreeItem(node.request.name, vscode.TreeItemCollapsibleState.None);
 				item.id = `httpRequest:${node.file}:${node.request.name}`;
-				item.contextValue = 'redCode.api.request';
+				item.contextValue = 'redCode.api.httpRequest';
 				item.description = node.request.method;
 				item.tooltip = `${node.request.method} ${node.request.url}\n${node.relativePath}`;
 				item.command = { command: 'redCode.api.openRequest', title: 'Open Request', arguments: [node] };
@@ -174,9 +190,7 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<ApiNode>
 
 	async getChildren(node?: ApiNode): Promise<ApiNode[]> {
 		if (!node) {
-			if (this.data.collections.length === 0 && this.data.httpFiles.length === 0) {
-				await this.load();
-			}
+			await this.load();
 			return [...this.data.collections, ...this.data.httpFiles];
 		}
 

@@ -9,7 +9,7 @@ import { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 import { gzipSync } from 'node:zlib';
 import { CookieJar } from '../cookies.js';
-import { sendRequest } from '../http.js';
+import { decodeBody, looksBinary, sendRequest } from '../http.js';
 import { ResolvedRequest } from '../model.js';
 
 let server: Server;
@@ -47,6 +47,30 @@ function handler(req: IncomingMessage, res: ServerResponse): void {
 			res.writeHead(200, { 'Content-Type': 'application/json' });
 			res.end(JSON.stringify({ body: Buffer.concat(chunks).toString('utf8'), contentType: req.headers['content-type'] }));
 		});
+		return;
+	}
+	if (url.startsWith('/echo-headers')) {
+		res.writeHead(200, { 'Content-Type': 'application/json' });
+		res.end(JSON.stringify({ authorization: req.headers.authorization ?? null, cookie: req.headers.cookie ?? null }));
+		return;
+	}
+	if (url.startsWith('/redirect-to')) {
+		const target = new URL(url, 'http://placeholder').searchParams.get('to') ?? '/json';
+		res.writeHead(302, { Location: target });
+		res.end();
+		return;
+	}
+	if (url === '/slow') {
+		setTimeout(() => {
+			res.writeHead(200, { 'Content-Type': 'text/plain' });
+			res.end('late');
+		}, 1000);
+		return;
+	}
+	if (url === '/latin1') {
+		const body = Buffer.from([0x63, 0x61, 0x66, 0xe9]);
+		res.writeHead(200, { 'Content-Type': 'text/plain; charset=iso-8859-1', 'Content-Length': body.length });
+		res.end(body);
 		return;
 	}
 	res.writeHead(404, 'Not Found', { 'Content-Type': 'text/plain' });
@@ -149,5 +173,54 @@ test('a timeout is reported with the configured duration', async () => {
 		);
 	} finally {
 		await new Promise<void>(resolve => slow.close(() => resolve()));
+	}
+});
+
+test('an aborted request rejects with AbortError and stops waiting', async () => {
+	const controller = new AbortController();
+	const pending = sendRequest(request('GET', '/slow'), { ...options(), signal: controller.signal });
+	setTimeout(() => controller.abort(), 100);
+	await assert.rejects(pending, (error: Error) => error.name === 'AbortError');
+});
+
+test('an already aborted signal never opens a connection', async () => {
+	const controller = new AbortController();
+	controller.abort();
+	await assert.rejects(
+		sendRequest(request('GET', '/json'), { ...options(), signal: controller.signal }),
+		(error: Error) => error.name === 'AbortError'
+	);
+});
+
+test('decodeBody honours the response charset', async () => {
+	const response = await sendRequest(request('GET', '/latin1'), options());
+	assert.equal(decodeBody(response.body, response.headers['content-type']), 'café');
+	assert.equal(decodeBody(Buffer.from('plain'), 'text/plain'), 'plain');
+});
+
+test('looksBinary separates text from binary payloads', () => {
+	assert.equal(looksBinary(Buffer.from('{"ok":true}')), false);
+	assert.equal(looksBinary(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01])), true);
+});
+
+test('a same-origin redirect keeps Authorization and a cross-origin redirect drops it', async () => {
+	const same = await sendRequest(
+		request('GET', `/redirect-to?to=${encodeURIComponent('/echo-headers')}`, undefined, { Authorization: 'Bearer same' }),
+		options()
+	);
+	assert.equal(JSON.parse(same.body.toString('utf8')).authorization, 'Bearer same');
+
+	const other = createServer(handler);
+	await new Promise<void>(resolve => other.listen(0, '127.0.0.1', resolve));
+	const otherOrigin = `http://127.0.0.1:${(other.address() as AddressInfo).port}`;
+	try {
+		const cross = await sendRequest(
+			request('GET', `/redirect-to?to=${encodeURIComponent(`${otherOrigin}/echo-headers`)}`, undefined, { Authorization: 'Bearer secret' }),
+			options()
+		);
+		assert.equal(cross.url, `${otherOrigin}/echo-headers`);
+		assert.equal(JSON.parse(cross.body.toString('utf8')).authorization, null);
+	} finally {
+		await new Promise<void>(resolve => other.close(() => resolve()));
 	}
 });

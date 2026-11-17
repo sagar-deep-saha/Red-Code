@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { ApiRequest, BaseUrlProfile, Collection, parseCollectionJson, serializeCollection } from './model.js';
 import { BASE_URLS_FILE, COLLECTIONS_FOLDER } from './variables.js';
@@ -14,6 +14,25 @@ export function collectionsDirectory(workspaceRoot: string): string {
 
 export function baseUrlsFile(workspaceRoot: string): string {
 	return path.join(workspaceRoot, BASE_URLS_FILE);
+}
+
+export interface CollectionSummary {
+	name: string;
+	file: string;
+}
+
+/** Every collection file in the workspace, sorted by the name shown in the tree. */
+export async function listCollections(workspaceRoot: string): Promise<CollectionSummary[]> {
+	let entries: string[];
+	try {
+		entries = await readdir(collectionsDirectory(workspaceRoot));
+	} catch {
+		return [];
+	}
+	return entries
+		.filter(entry => entry.toLowerCase().endsWith('.json'))
+		.sort((a, b) => a.localeCompare(b))
+		.map(entry => ({ name: path.basename(entry, '.json'), file: path.join(collectionsDirectory(workspaceRoot), entry) }));
 }
 
 export async function readBaseUrlProfiles(workspaceRoot: string | undefined): Promise<BaseUrlProfile[]> {
@@ -48,6 +67,12 @@ export async function readBaseUrlProfiles(workspaceRoot: string | undefined): Pr
 	}
 }
 
+async function writeBaseUrlProfiles(workspaceRoot: string, profiles: readonly BaseUrlProfile[]): Promise<void> {
+	const file = baseUrlsFile(workspaceRoot);
+	await mkdir(path.dirname(file), { recursive: true });
+	await writeFile(file, `${JSON.stringify({ profiles }, undefined, '\t')}\n`, 'utf8');
+}
+
 export async function saveBaseUrlProfile(workspaceRoot: string | undefined, name: string, value: string): Promise<void> {
 	if (!workspaceRoot) {
 		throw new Error('Open a folder first to save base URL profiles in the workspace.');
@@ -74,10 +99,20 @@ export async function saveBaseUrlProfile(workspaceRoot: string | undefined, name
 	} else {
 		profiles.push(profile);
 	}
+	await writeBaseUrlProfiles(workspaceRoot, profiles);
+}
 
-	const file = baseUrlsFile(workspaceRoot);
-	await mkdir(path.dirname(file), { recursive: true });
-	await writeFile(file, `${JSON.stringify({ profiles }, undefined, '\t')}\n`, 'utf8');
+export async function deleteBaseUrlProfile(workspaceRoot: string | undefined, name: string): Promise<boolean> {
+	if (!workspaceRoot) {
+		return false;
+	}
+	const profiles = await readBaseUrlProfiles(workspaceRoot);
+	const remaining = profiles.filter(profile => profile.name !== name);
+	if (remaining.length === profiles.length) {
+		return false;
+	}
+	await writeBaseUrlProfiles(workspaceRoot, remaining);
+	return true;
 }
 
 /** Keeps a user-supplied collection name a single, safe file name. */
@@ -133,4 +168,47 @@ export async function addRequest(workspaceRoot: string, collectionName: string, 
 	}
 	await writeCollectionFile(file, collection);
 	return file;
+}
+
+/** Adds (or replaces by name) a request in an existing collection file. */
+export async function saveRequestToFile(file: string, request: ApiRequest): Promise<void> {
+	let collection: Collection;
+	try {
+		collection = await readCollectionFile(file);
+	} catch {
+		collection = { name: path.basename(file, '.json'), requests: [] };
+	}
+	const existing = collection.requests.findIndex(entry => entry.name === request.name);
+	if (existing >= 0) {
+		collection.requests[existing] = request;
+	} else {
+		collection.requests.push(request);
+	}
+	await writeCollectionFile(file, collection);
+}
+
+export async function renameRequest(file: string, oldName: string, newName: string): Promise<ApiRequest | undefined> {
+	const collection = await readCollectionFile(file);
+	const request = collection.requests.find(entry => entry.name === oldName);
+	if (!request) {
+		return undefined;
+	}
+	request.name = newName;
+	await writeCollectionFile(file, collection);
+	return request;
+}
+
+export async function deleteRequest(file: string, name: string): Promise<boolean> {
+	const collection = await readCollectionFile(file);
+	const before = collection.requests.length;
+	collection.requests = collection.requests.filter(entry => entry.name !== name);
+	if (collection.requests.length === before) {
+		return false;
+	}
+	await writeCollectionFile(file, collection);
+	return true;
+}
+
+export async function deleteCollectionFile(file: string): Promise<void> {
+	await unlink(file);
 }

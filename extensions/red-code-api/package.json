@@ -38,6 +38,12 @@
 				}
 			]
 		},
+		"viewsWelcome": [
+			{
+				"view": "redCode.api.collections",
+				"contents": "%welcomeContents%"
+			}
+		],
 		"commands": [
 			{
 				"command": "redCode.api.newCollection",
@@ -54,7 +60,8 @@
 			{
 				"command": "redCode.api.newRequestFromRoute",
 				"title": "%newRequestFromRouteCommand%",
-				"category": "Red Code API"
+				"category": "Red Code API",
+				"icon": "$(symbol-method)"
 			},
 			{
 				"command": "redCode.api.duplicateRequest",
@@ -63,9 +70,45 @@
 				"icon": "$(copy)"
 			},
 			{
+				"command": "redCode.api.renameRequest",
+				"title": "%renameRequestCommand%",
+				"category": "Red Code API",
+				"icon": "$(edit)"
+			},
+			{
+				"command": "redCode.api.deleteRequest",
+				"title": "%deleteRequestCommand%",
+				"category": "Red Code API",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "redCode.api.deleteCollection",
+				"title": "%deleteCollectionCommand%",
+				"category": "Red Code API",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "redCode.api.revealInExplorer",
+				"title": "%revealInExplorerCommand%",
+				"category": "Red Code API",
+				"icon": "$(go-to-file)"
+			},
+			{
+				"command": "redCode.api.openSavedEndpoint",
+				"title": "%openSavedEndpointCommand%",
+				"category": "Red Code API"
+			},
+			{
 				"command": "redCode.api.selectEnvironment",
 				"title": "%selectEnvironmentCommand%",
-				"category": "Red Code API"
+				"category": "Red Code API",
+				"icon": "$(symbol-variable)"
+			},
+			{
+				"command": "redCode.api.newEnvironment",
+				"title": "%newEnvironmentCommand%",
+				"category": "Red Code API",
+				"icon": "$(new-file)"
 			},
 			{
 				"command": "redCode.api.fetchCsrfCookie",
@@ -97,9 +140,34 @@
 					"group": "navigation@1"
 				},
 				{
-					"command": "redCode.api.refresh",
+					"command": "redCode.api.newRequestFromRoute",
 					"when": "view == redCode.api.collections",
 					"group": "navigation@2"
+				},
+				{
+					"command": "redCode.api.refresh",
+					"when": "view == redCode.api.collections",
+					"group": "navigation@3"
+				},
+				{
+					"command": "redCode.api.newEnvironment",
+					"when": "view == redCode.api.collections",
+					"group": "1_configuration@1"
+				},
+				{
+					"command": "redCode.api.selectEnvironment",
+					"when": "view == redCode.api.collections",
+					"group": "1_configuration@2"
+				},
+				{
+					"command": "redCode.api.fetchCsrfCookie",
+					"when": "view == redCode.api.collections",
+					"group": "2_session@1"
+				},
+				{
+					"command": "redCode.api.clearCookies",
+					"when": "view == redCode.api.collections",
+					"group": "2_session@2"
 				}
 			],
 			"view/item/context": [
@@ -109,17 +177,69 @@
 					"group": "inline@1"
 				},
 				{
+					"command": "redCode.api.revealInExplorer",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.collection",
+					"group": "inline@2"
+				},
+				{
+					"command": "redCode.api.deleteCollection",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.collection",
+					"group": "inline@3"
+				},
+				{
 					"command": "redCode.api.newRequest",
-					"when": "view == redCode.api.collections && viewItem == redCode.api.collection"
+					"when": "view == redCode.api.collections && viewItem == redCode.api.collection",
+					"group": "1_collection@1"
+				},
+				{
+					"command": "redCode.api.revealInExplorer",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.collection",
+					"group": "2_files@1"
+				},
+				{
+					"command": "redCode.api.deleteCollection",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.collection",
+					"group": "9_danger@1"
 				},
 				{
 					"command": "redCode.api.duplicateRequest",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.request",
+					"group": "inline@1"
+				},
+				{
+					"command": "redCode.api.renameRequest",
 					"when": "view == redCode.api.collections && viewItem == redCode.api.request",
 					"group": "inline@2"
 				},
 				{
 					"command": "redCode.api.duplicateRequest",
-					"when": "view == redCode.api.collections && viewItem == redCode.api.request"
+					"when": "view == redCode.api.collections && viewItem == redCode.api.request",
+					"group": "1_request@1"
+				},
+				{
+					"command": "redCode.api.renameRequest",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.request",
+					"group": "1_request@2"
+				},
+				{
+					"command": "redCode.api.revealInExplorer",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.request",
+					"group": "2_files@1"
+				},
+				{
+					"command": "redCode.api.deleteRequest",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.request",
+					"group": "9_danger@1"
+				},
+				{
+					"command": "redCode.api.revealInExplorer",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.httpRequest",
+					"group": "2_files@1"
+				},
+				{
+					"command": "redCode.api.revealInExplorer",
+					"when": "view == redCode.api.collections && viewItem == redCode.api.httpFile",
+					"group": "2_files@1"
 				}
 			],
 			"webview/title": [
@@ -135,6 +255,10 @@
 				},
 				{
 					"command": "redCode.api.duplicateRequest"
+				},
+				{
+					"command": "redCode.api.openSavedEndpoint",
+					"when": "false"
 				},
 				{
 					"command": "redCode.api.refresh",

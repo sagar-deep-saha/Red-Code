@@ -14,6 +14,7 @@ import {
 	parseCollectionJson,
 	parseDotEnv,
 	parseHttpFile,
+	resolveRequest,
 	serializeCollection,
 	substitute
 } from '../model.js';
@@ -54,7 +55,7 @@ test('buildHeaders adds a JSON content type unless the request sets one', () => 
 		body: { mode: 'json', text: '{}' }
 	});
 	const headers = buildHeaders(custom, variables);
-	assert.equal(headers['content-type'], 'application/vnd.api+json');
+	assert.equal(headers['Content-Type'], 'application/vnd.api+json');
 	assert.equal(Object.keys(headers).filter(name => name.toLowerCase() === 'content-type').length, 1);
 });
 
@@ -152,4 +153,122 @@ test('GET and HEAD never carry a body', () => {
 	assert.equal(allowsBody('GET'), false);
 	assert.equal(allowsBody('HEAD'), false);
 	assert.equal(allowsBody('POST'), true);
+});
+
+test('basic and bearer auth become Authorization headers', () => {
+	const basic = buildHeaders(normalizeRequest({
+		url: '{{baseUrl}}/api',
+		auth: { type: 'basic', username: 'sagar', password: 'secret' }
+	}), variables);
+	assert.equal(basic.Authorization, `Basic ${Buffer.from('sagar:secret', 'utf8').toString('base64')}`);
+
+	const bearer = buildHeaders(normalizeRequest({
+		url: '{{baseUrl}}/api',
+		auth: { type: 'bearer', token: '{{token}}' }
+	}), variables);
+	assert.equal(bearer.Authorization, 'Bearer abc 123');
+
+	const overridden = buildHeaders(normalizeRequest({
+		url: '{{baseUrl}}/api',
+		auth: { type: 'bearer', token: '{{token}}' },
+		headers: [{ name: 'authorization', value: 'Token manual' }]
+	}), variables);
+	assert.equal(overridden.Authorization, 'Token manual');
+	assert.equal(Object.keys(overridden).filter(name => name.toLowerCase() === 'authorization').length, 1);
+});
+
+test('auth and form fields survive a JSON round-trip', () => {
+	const collection = parseCollectionJson(JSON.stringify({
+		name: 'Forms',
+		requests: [{
+			name: 'Upload',
+			method: 'POST',
+			url: '{{baseUrl}}/api/forms',
+			body: {
+				mode: 'multipart',
+				params: [
+					{ name: 'title', value: 'Hello', enabled: true },
+					{ name: 'avatar', value: 'C:/tmp/pic.png', enabled: true, kind: 'file' }
+				]
+			},
+			auth: { type: 'bearer', token: '{{token}}' }
+		}]
+	}), 'fallback');
+
+	const request = collection.requests[0];
+	assert.equal(request.body.mode, 'multipart');
+	assert.deepEqual(request.body.params, [
+		{ name: 'title', value: 'Hello', enabled: true },
+		{ name: 'avatar', value: 'C:/tmp/pic.png', enabled: true, kind: 'file' }
+	]);
+	assert.equal(request.auth.type, 'bearer');
+
+	assert.deepEqual(parseCollectionJson(serializeCollection(collection), 'fallback'), collection);
+});
+
+test('resolveRequest encodes a url-encoded form body', async () => {
+	const resolved = await resolveRequest(normalizeRequest({
+		method: 'POST',
+		url: '{{baseUrl}}/api/forms',
+		body: {
+			mode: 'form',
+			params: [
+				{ name: 'name', value: 'Red Code' },
+				{ name: 'off', value: 'x', enabled: false }
+			]
+		}
+	}), variables);
+
+	assert.equal(resolved.body?.toString('utf8'), 'name=Red%20Code');
+	assert.match(resolved.headers['Content-Type'], /application\/x-www-form-urlencoded/);
+});
+
+test('resolveRequest builds a multipart body with a file part', async () => {
+	const resolved = await resolveRequest(normalizeRequest({
+		method: 'POST',
+		url: '{{baseUrl}}/api/uploads',
+		body: {
+			mode: 'multipart',
+			params: [
+				{ name: 'title', value: 'Hello' },
+				{ name: 'avatar', value: 'C:/tmp/pic.png', kind: 'file' }
+			]
+		}
+	}), variables, {
+		boundary: 'REDBOUNDARY',
+		loadFile: async () => Buffer.from('PNGDATA')
+	});
+
+	assert.equal(resolved.headers['Content-Type'], 'multipart/form-data; boundary=REDBOUNDARY');
+	const body = resolved.body?.toString('utf8') ?? '';
+	assert.match(body, /--REDBOUNDARY\r\nContent-Disposition: form-data; name="title"\r\n\r\nHello\r\n/);
+	assert.match(body, /Content-Disposition: form-data; name="avatar"; filename="pic\.png"\r\nContent-Type: image\/png\r\n\r\nPNGDATA\r\n/);
+	assert.match(body, /--REDBOUNDARY--\r\n$/);
+});
+
+test('a multipart file part without a loader fails with a readable error', async () => {
+	await assert.rejects(resolveRequest(normalizeRequest({
+		method: 'POST',
+		url: '{{baseUrl}}/api/uploads',
+		body: { mode: 'multipart', params: [{ name: 'avatar', value: 'C:/tmp/pic.png', kind: 'file' }] }
+	}), variables), /needs a readable file/);
+});
+
+test('an empty body drops the inferred Content-Type header', async () => {
+	const resolved = await resolveRequest(normalizeRequest({
+		method: 'POST',
+		url: '{{baseUrl}}/api',
+		body: { mode: 'json', text: '' }
+	}), variables);
+	assert.equal(resolved.body, undefined);
+	assert.equal(Object.keys(resolved.headers).some(name => name.toLowerCase() === 'content-type'), false);
+});
+
+test('missingVariables includes auth and multipart fields', () => {
+	const request = normalizeRequest({
+		url: '{{baseUrl}}/api',
+		auth: { type: 'bearer', token: '{{token}}' },
+		body: { mode: 'multipart', params: [{ name: 'file', value: '{{uploadPath}}', kind: 'file' }] }
+	});
+	assert.deepEqual(missingVariables(request, { baseUrl: 'x', token: 't' }), ['uploadPath']);
 });

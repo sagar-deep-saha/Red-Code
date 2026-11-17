@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { parseDotEnv } from './model.js';
 
@@ -36,8 +36,12 @@ function normalizeBaseUrl(value: string): string {
  */
 export async function loadVariables(sources: VariableSources): Promise<Record<string, string>> {
 	const variables: Record<string, string> = {};
+	let explicitBaseUrl = false;
 	for (const [name, value] of Object.entries(sources.userVariables)) {
 		variables[name] = String(value);
+		if (name === 'baseUrl') {
+			explicitBaseUrl = true;
+		}
 	}
 
 	if (sources.workspaceRoot) {
@@ -45,10 +49,10 @@ export async function loadVariables(sources: VariableSources): Promise<Record<st
 		if (dotEnv) {
 			for (const [name, value] of Object.entries(parseDotEnv(dotEnv))) {
 				variables[name] = value;
+				if (name === 'baseUrl') {
+					explicitBaseUrl = true;
+				}
 			}
-		}
-		if (variables.APP_URL) {
-			variables.baseUrl = normalizeBaseUrl(variables.APP_URL);
 		}
 
 		if (sources.environment) {
@@ -61,6 +65,9 @@ export async function loadVariables(sources: VariableSources): Promise<Record<st
 						for (const [name, value] of Object.entries(parsed as Record<string, unknown>)) {
 							if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
 								variables[name] = String(value);
+								if (name === 'baseUrl') {
+									explicitBaseUrl = true;
+								}
 							}
 						}
 					}
@@ -70,6 +77,11 @@ export async function loadVariables(sources: VariableSources): Promise<Record<st
 				}
 			}
 		}
+	}
+
+	// `baseUrl` follows the final `APP_URL` unless a source set `baseUrl` itself.
+	if (!explicitBaseUrl && variables.APP_URL) {
+		variables.baseUrl = normalizeBaseUrl(variables.APP_URL);
 	}
 
 	return variables;
@@ -89,4 +101,37 @@ export async function listEnvironments(workspaceRoot: string | undefined): Promi
 	} catch {
 		return [];
 	}
+}
+
+/** Keeps a user-supplied environment name a single, safe file name. */
+export function environmentFileName(name: string): string {
+	const cleaned = name
+		.trim()
+		.replace(/[\\/:*?"<>|\0]/g, '-')
+		.replace(/\s+/g, '-')
+		.replace(/^-+|-+$/g, '');
+	return `${cleaned || 'environment'}.json`;
+}
+
+/** Creates an empty environment file and returns its path. */
+export async function createEnvironment(workspaceRoot: string | undefined, name: string): Promise<string> {
+	if (!workspaceRoot) {
+		throw new Error('Open a folder first to save environments in the workspace.');
+	}
+	const cleanName = name.trim();
+	if (!cleanName) {
+		throw new Error('An environment needs a name.');
+	}
+	const directory = path.join(workspaceRoot, ENVIRONMENTS_FOLDER);
+	await mkdir(directory, { recursive: true });
+	const file = path.join(directory, environmentFileName(cleanName));
+	try {
+		await writeFile(file, '{}\n', { encoding: 'utf8', flag: 'wx' });
+	} catch (error) {
+		if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST') {
+			throw new Error(`Environment "${cleanName}" already exists.`);
+		}
+		throw error;
+	}
+	return file;
 }

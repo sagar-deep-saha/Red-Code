@@ -8,15 +8,25 @@ import * as vscode from 'vscode';
 import { ApiRequest, normalizeRequest } from './model.js';
 import { PanelServices, RequestPanel } from './requestPanel.js';
 import { requestFromRoute, runPhpListRoutes } from './routes.js';
-import { addRequest, createCollection, readBaseUrlProfiles, saveBaseUrlProfile } from './storage.js';
+import {
+	addRequest,
+	createCollection,
+	deleteCollectionFile,
+	deleteRequest,
+	listCollections,
+	readBaseUrlProfiles,
+	renameRequest,
+	saveBaseUrlProfile
+} from './storage.js';
 import { ApiNode, CollectionsTreeProvider } from './tree.js';
-import { listEnvironments, loadVariables } from './variables.js';
+import { listEnvironments, loadVariables, createEnvironment } from './variables.js';
 
 const LAST_COLLECTION_KEY = 'redCode.api.lastCollection';
 
 export function activate(context: vscode.ExtensionContext): void {
 	const tree = new CollectionsTreeProvider();
 	const treeView = vscode.window.createTreeView('redCode.api.collections', { treeDataProvider: tree, showCollapseAll: true });
+	let panelRef: RequestPanel | undefined;
 
 	function workspaceRoot(): string | undefined {
 		return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -51,23 +61,51 @@ export function activate(context: vscode.ExtensionContext): void {
 		await vscode.workspace.getConfiguration('redCode.api').update('environment', choice.value, target);
 	}
 
-	async function save(request: ApiRequest): Promise<string> {
+	/**
+	 * Writes a request into `collectionName` when the tab is bound to a collection, otherwise asks
+	 * which collection to use: an existing file, or a new one.
+	 */
+	async function save(request: ApiRequest, collectionName?: string): Promise<string | undefined> {
 		const root = workspaceRoot();
 		if (!root) {
 			throw new Error('Open a folder first; requests are saved inside the workspace.');
 		}
-		const last = context.workspaceState.get<string>(LAST_COLLECTION_KEY) ?? 'Requests';
-		const name = await vscode.window.showInputBox({
-			title: 'Save Request',
-			prompt: 'Collection name. The request is written to .redcode/api/collections/<name>.json',
-			value: last,
-			validateInput: value => value.trim().length === 0 ? 'Enter a collection name.' : undefined
-		});
+
+		let name = collectionName?.trim();
 		if (!name) {
-			throw new Error('Save cancelled.');
+			const collections = await listCollections(root);
+			const last = context.workspaceState.get<string>(LAST_COLLECTION_KEY) ?? '';
+			const items: (vscode.QuickPickItem & { value: string })[] = [
+				...collections.map(collection => ({
+					label: collection.name,
+					description: collection.name === last ? 'Last used' : '.redcode/api/collections',
+					value: collection.name
+				})),
+				{ label: '$(add) New collection…', description: 'Create a collection file', value: '' }
+			];
+			const choice = await vscode.window.showQuickPick(items, {
+				placeHolder: `Save "${request.name}" in a collection`
+			});
+			if (!choice) {
+				return undefined;
+			}
+			name = choice.value;
+			if (!name) {
+				name = await vscode.window.showInputBox({
+					title: 'Save Request',
+					prompt: 'Collection name. The request is written to .redcode/api/collections/<name>.json',
+					value: last || 'Requests',
+					validateInput: value => value.trim().length === 0 ? 'Enter a collection name.' : undefined
+				});
+				if (!name) {
+					return undefined;
+				}
+			}
 		}
-		await context.workspaceState.update(LAST_COLLECTION_KEY, name.trim());
-		const file = await addRequest(root, name.trim(), request);
+
+		name = name.trim();
+		await context.workspaceState.update(LAST_COLLECTION_KEY, name);
+		const file = await addRequest(root, name, request);
 		tree.refresh();
 		return path.relative(root, file).split(path.sep).join('/');
 	}
@@ -79,28 +117,36 @@ export function activate(context: vscode.ExtensionContext): void {
 		selectEnvironment,
 		loadBaseUrlProfiles: () => readBaseUrlProfiles(workspaceRoot()),
 		saveBaseUrlProfile: (name, url) => saveBaseUrlProfile(workspaceRoot(), name, url),
-		loadSavedEndpoints: () => tree.savedEndpoints()
+		loadSavedEndpoints: () => tree.savedEndpoints(),
+		currentCollection: () => panelRef?.activeCollection
 	};
 
 	const panel = new RequestPanel(services);
+	panelRef = panel;
 	context.subscriptions.push(panel, treeView, tree);
 
+	function collectionNameOf(file: string): string {
+		return path.basename(file, '.json');
+	}
+
 	function open(node: ApiNode): void {
-		if (node.kind === 'request' || node.kind === 'httpRequest') {
-			const label = node.kind === 'httpRequest'
-				? `${node.relativePath}`
-				: path.basename(node.file);
-			void panel.show(node.request, label, node.kind === 'httpRequest');
+		if (node.kind === 'request') {
+			const collection = collectionNameOf(node.file);
+			void panel.show(node.request, `${collection} / ${node.request.name}`, false, undefined, '', collection);
+			return;
+		}
+		if (node.kind === 'httpRequest') {
+			void panel.show(node.request, node.relativePath, true);
 			return;
 		}
 		if (node.kind === 'collection') {
 			void tree.requests(node.file).then(requests => {
 				if (requests.length > 0) {
-					void panel.show(requests[0], path.basename(node.file), false);
+					open({ kind: 'request', file: node.file, request: requests[0] });
 				} else {
-					void vscode.window.showInformationMessage(`${node.name} has no requests yet.`);
+					void newRequest(node);
 				}
-			});
+			}, error => report(error));
 		}
 	}
 
@@ -126,16 +172,125 @@ export function activate(context: vscode.ExtensionContext): void {
 		}
 	}
 
+	async function newEnvironment(): Promise<void> {
+		const root = workspaceRoot();
+		if (!root) {
+			void vscode.window.showInformationMessage('Red Code API: open a folder before creating an environment.');
+			return;
+		}
+		const name = await vscode.window.showInputBox({
+			title: 'New API Environment',
+			prompt: 'Environment name. It is saved as .redcode/api/environments/<name>.json and selected.',
+			validateInput: value => value.trim().length === 0 ? 'Enter an environment name.' : undefined
+		});
+		if (!name) {
+			return;
+		}
+		try {
+			const file = await createEnvironment(root, name);
+			const target = vscode.workspace.workspaceFolders?.length ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+			await vscode.workspace.getConfiguration('redCode.api').update('environment', path.basename(file, '.json'), target);
+			tree.refresh();
+			await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(file)));
+		} catch (error) {
+			report(error);
+		}
+	}
+
+	function newRequest(node?: ApiNode): void {
+		const collection = node?.kind === 'collection' ? collectionNameOf(node.file) : undefined;
+		void panel.show(
+			normalizeRequest({ name: 'New Request', url: '{{baseUrl}}/api/' }),
+			collection ? `${collection} / New Request` : 'Unsaved request',
+			false,
+			undefined,
+			'',
+			collection
+		);
+	}
+
 	async function duplicateRequest(node?: ApiNode): Promise<void> {
 		if (node && (node.kind === 'request' || node.kind === 'httpRequest')) {
-			await panel.show(
-				{ ...node.request, name: `${node.request.name} copy` },
-				`Copy of ${node.request.name}`,
-				false
-			);
+			const copy = { ...node.request, name: `${node.request.name} copy` };
+			const collection = node.kind === 'request' ? collectionNameOf(node.file) : undefined;
+			await panel.show(copy, `Copy of ${node.request.name}`, false, undefined, '', collection);
 			return;
 		}
 		await panel.duplicateActive();
+	}
+
+	async function rename(node: ApiNode | undefined): Promise<void> {
+		if (node?.kind !== 'request') {
+			void vscode.window.showInformationMessage('Red Code API: select a saved request in Collections to rename it. Requests in .http files are edited on disk.');
+			return;
+		}
+		const name = await vscode.window.showInputBox({
+			title: 'Rename Request',
+			prompt: 'The new name replaces the old one in the collection file.',
+			value: node.request.name,
+			validateInput: value => value.trim().length === 0 ? 'Enter a request name.' : undefined
+		});
+		if (!name || name.trim() === node.request.name) {
+			return;
+		}
+		try {
+			await renameRequest(node.file, node.request.name, name.trim());
+			tree.refresh();
+		} catch (error) {
+			report(error);
+		}
+	}
+
+	async function removeRequest(node: ApiNode | undefined): Promise<void> {
+		if (node?.kind !== 'request') {
+			void vscode.window.showInformationMessage('Red Code API: select a saved request in Collections to delete it. Requests in .http files are edited on disk.');
+			return;
+		}
+		const answer = await vscode.window.showWarningMessage(
+			`Delete "${node.request.name}" from ${collectionNameOf(node.file)}?`,
+			{ modal: true },
+			'Delete'
+		);
+		if (answer !== 'Delete') {
+			return;
+		}
+		try {
+			if (await deleteRequest(node.file, node.request.name)) {
+				tree.refresh();
+			} else {
+				void vscode.window.showInformationMessage('Red Code API: that request was already removed. Refresh the view.');
+			}
+		} catch (error) {
+			report(error);
+		}
+	}
+
+	async function removeCollection(node: ApiNode | undefined): Promise<void> {
+		if (node?.kind !== 'collection') {
+			void vscode.window.showInformationMessage('Red Code API: select a collection to delete it.');
+			return;
+		}
+		const answer = await vscode.window.showWarningMessage(
+			`Delete the collection "${node.name}" and every request in it?`,
+			{ modal: true, detail: path.relative(workspaceRoot() ?? '', node.file) },
+			'Delete'
+		);
+		if (answer !== 'Delete') {
+			return;
+		}
+		try {
+			await deleteCollectionFile(node.file);
+			tree.refresh();
+		} catch (error) {
+			report(error);
+		}
+	}
+
+	function reveal(node: ApiNode | undefined): void {
+		if (!node) {
+			return;
+		}
+		void vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(node.file));
 	}
 
 	function phpPath(): string {
@@ -146,33 +301,46 @@ export function activate(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.window.registerWebviewPanelSerializer('redCode.api.request', {
 			async deserializeWebviewPanel(webviewPanel, state) {
-				await panel.restore(webviewPanel, state);
+				await panel?.restore(webviewPanel, state);
 			}
 		}),
-		vscode.commands.registerCommand('redCode.api.refresh', () => tree.refresh()),
-		vscode.commands.registerCommand('redCode.api.newCollection', () => newCollection()),
 		vscode.commands.registerCommand('redCode.api.openRequest', (node?: ApiNode) => {
 			if (node) {
 				open(node);
 			}
 		}),
-		vscode.commands.registerCommand('redCode.api.duplicateRequest', (node?: ApiNode) => duplicateRequest(node)),
-		vscode.commands.registerCommand('redCode.api.newRequest', () => {
-			void panel.show(normalizeRequest({ name: 'New Request', url: '{{baseUrl}}/api/' }), 'Unsaved request', false);
+		vscode.commands.registerCommand('redCode.api.openSavedEndpoint', async (id?: unknown) => {
+			if (typeof id !== 'string' || !id) {
+				return;
+			}
+			try {
+				await panel?.openEndpoint(id);
+			} catch (error) {
+				report(error);
+			}
 		}),
+		vscode.commands.registerCommand('redCode.api.refresh', () => tree.refresh()),
+		vscode.commands.registerCommand('redCode.api.newCollection', () => newCollection()),
+		vscode.commands.registerCommand('redCode.api.newEnvironment', () => newEnvironment()),
+		vscode.commands.registerCommand('redCode.api.newRequest', (node?: ApiNode) => newRequest(node)),
+		vscode.commands.registerCommand('redCode.api.duplicateRequest', (node?: ApiNode) => duplicateRequest(node)),
+		vscode.commands.registerCommand('redCode.api.renameRequest', (node?: ApiNode) => rename(node)),
+		vscode.commands.registerCommand('redCode.api.deleteRequest', (node?: ApiNode) => removeRequest(node)),
+		vscode.commands.registerCommand('redCode.api.deleteCollection', (node?: ApiNode) => removeCollection(node)),
+		vscode.commands.registerCommand('redCode.api.revealInExplorer', (node?: ApiNode) => reveal(node)),
 		vscode.commands.registerCommand('redCode.api.selectEnvironment', () => selectEnvironment()),
 		vscode.commands.registerCommand('redCode.api.clearCookies', () => {
-			panel.cookies.clear();
+			panel?.cookies.clear();
 			void vscode.window.showInformationMessage('Red Code API: cookies cleared.');
 		}),
 		vscode.commands.registerCommand('redCode.api.fetchCsrfCookie', async () => {
 			try {
-				const base = await panel.activeBaseUrl();
+				const base = await panel?.activeBaseUrl();
 				if (!base) {
 					void vscode.window.showWarningMessage('Red Code API: set a base URL in the active request tab or add APP_URL to .env.');
 					return;
 				}
-				await panel.fetchCsrf(`${base.replace(/\/+$/, '')}/`);
+				await panel?.fetchCsrf(`${base.replace(/\/+$/, '')}/`);
 				void vscode.window.showInformationMessage('Red Code API: CSRF cookie stored.');
 			} catch (error) {
 				report(error);
@@ -203,7 +371,7 @@ export function activate(context: vscode.ExtensionContext): void {
 					{ placeHolder: 'Laravel route to prefill', matchOnDescription: true, matchOnDetail: true }
 				);
 				if (choice) {
-					await panel.show(requestFromRoute(choice.route), 'Laravel route', false);
+					await panel?.show(requestFromRoute(choice.route), 'Laravel route', false);
 				}
 			} catch (error) {
 				report(error);

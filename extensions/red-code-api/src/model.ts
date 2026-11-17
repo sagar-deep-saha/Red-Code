@@ -6,8 +6,9 @@
 /**
  * Request model and the pure parsing/normalization around it.
  *
- * Everything in this file is free of `vscode` and Node imports so it can be tested directly and
- * reused from the webview message handler without a running editor.
+ * Everything in this file is free of `vscode` imports so it can be tested directly and reused from
+ * the webview message handler without a running editor. File access is injected through
+ * {@link ResolveOptions.loadFile}, which keeps multipart uploads testable.
  */
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const;
@@ -18,17 +19,32 @@ export function isHttpMethod(value: unknown): value is HttpMethod {
 	return typeof value === 'string' && (HTTP_METHODS as readonly string[]).includes(value.toUpperCase());
 }
 
+export type KeyValueKind = 'text' | 'file';
+
 export interface KeyValue {
 	name: string;
 	value: string;
 	enabled: boolean;
+	/** Only used by multipart bodies: a plain field or a file path. */
+	kind?: KeyValueKind;
 }
 
-export type BodyMode = 'none' | 'json' | 'text';
+export type BodyMode = 'none' | 'json' | 'text' | 'form' | 'multipart';
 
 export interface ApiBody {
 	mode: BodyMode;
 	text: string;
+	/** Rows for `form` and `multipart` bodies. */
+	params?: KeyValue[];
+}
+
+export type AuthType = 'none' | 'basic' | 'bearer';
+
+export interface ApiAuth {
+	type: AuthType;
+	username: string;
+	password: string;
+	token: string;
 }
 
 export interface ApiRequest {
@@ -38,6 +54,7 @@ export interface ApiRequest {
 	params: KeyValue[];
 	headers: KeyValue[];
 	body: ApiBody;
+	auth: ApiAuth;
 }
 
 export interface Collection {
@@ -120,11 +137,15 @@ export function normalizeKeyValues(value: unknown): KeyValue[] {
 				if (!name) {
 					return undefined;
 				}
-				return {
+				const normalized: KeyValue = {
 					name,
 					value: asString(record.value),
 					enabled: record.enabled === undefined ? true : Boolean(record.enabled)
-				} satisfies KeyValue;
+				};
+				if (record.kind === 'file' || record.type === 'file') {
+					normalized.kind = 'file';
+				}
+				return normalized;
 			})
 			.filter((entry): entry is KeyValue => entry !== undefined);
 	}
@@ -136,6 +157,10 @@ export function normalizeKeyValues(value: unknown): KeyValue[] {
 	return Object.entries(record).map(([name, entry]) => ({ name, value: asString(entry), enabled: true }));
 }
 
+export function isBodyMode(value: unknown): value is BodyMode {
+	return value === 'none' || value === 'json' || value === 'text' || value === 'form' || value === 'multipart';
+}
+
 export function normalizeBody(value: unknown): ApiBody {
 	if (typeof value === 'string') {
 		return { mode: value.trim().length > 0 ? 'json' : 'none', text: value };
@@ -144,8 +169,24 @@ export function normalizeBody(value: unknown): ApiBody {
 	if (!record) {
 		return { mode: 'none', text: '' };
 	}
-	const mode = record.mode === 'json' || record.mode === 'text' || record.mode === 'none' ? record.mode : 'none';
-	return { mode, text: asString(record.text ?? record.content) };
+	const mode: BodyMode = isBodyMode(record.mode) ? record.mode : 'none';
+	const params = normalizeKeyValues(record.params ?? record.fields ?? record.form);
+	const body: ApiBody = { mode, text: asString(record.text ?? record.content) };
+	if (mode === 'form' || mode === 'multipart' || params.length > 0) {
+		body.params = params;
+	}
+	return body;
+}
+
+export function normalizeAuth(value: unknown): ApiAuth {
+	const record = asRecord(value);
+	const type: AuthType = record?.type === 'basic' || record?.type === 'bearer' ? record.type : 'none';
+	return {
+		type,
+		username: asString(record?.username ?? record?.user),
+		password: asString(record?.password),
+		token: asString(record?.token)
+	};
 }
 
 export function normalizeRequest(value: unknown): ApiRequest {
@@ -161,7 +202,8 @@ export function normalizeRequest(value: unknown): ApiRequest {
 		url,
 		params: normalizeKeyValues(record.params ?? record.query),
 		headers: normalizeKeyValues(record.headers),
-		body: normalizeBody(record.body)
+		body: normalizeBody(record.body),
+		auth: normalizeAuth(record.auth)
 	};
 }
 
@@ -193,17 +235,33 @@ export function parseCollectionJson(text: string, fallbackName: string): Collect
 	throw new Error('Expected an object with a "requests" array.');
 }
 
+function serializeBody(body: ApiBody): Record<string, unknown> {
+	const record: Record<string, unknown> = { mode: body.mode, text: body.text };
+	if (body.params && body.params.length > 0) {
+		record.params = body.params;
+	}
+	return record;
+}
+
+function serializeRequest(request: ApiRequest): Record<string, unknown> {
+	const record: Record<string, unknown> = {
+		name: request.name,
+		method: request.method,
+		url: request.url,
+		params: request.params,
+		headers: request.headers,
+		body: serializeBody(request.body)
+	};
+	if (request.auth.type !== 'none') {
+		record.auth = request.auth;
+	}
+	return record;
+}
+
 export function serializeCollection(collection: Collection): string {
 	return `${JSON.stringify({
 		name: collection.name,
-		requests: collection.requests.map(request => ({
-			name: request.name,
-			method: request.method,
-			url: request.url,
-			params: request.params,
-			headers: request.headers,
-			body: request.body
-		}))
+		requests: collection.requests.map(serializeRequest)
 	}, undefined, '\t')}\n`;
 }
 
@@ -234,15 +292,33 @@ export function buildUrl(request: ApiRequest, variables: Readonly<Record<string,
 	return appendQuery(url, request.params, variables);
 }
 
+function hasHeader(headers: Record<string, string>, name: string): boolean {
+	return Object.keys(headers).some(header => header.toLowerCase() === name.toLowerCase());
+}
+
 export function buildHeaders(request: ApiRequest, variables: Readonly<Record<string, string | undefined>>): Record<string, string> {
 	const headers: Record<string, string> = {
 		Accept: 'application/json, text/plain, */*',
 		'User-Agent': 'Red-Code-API'
 	};
+
 	if (request.body.mode === 'json') {
 		headers['Content-Type'] = 'application/json';
 	} else if (request.body.mode === 'text') {
 		headers['Content-Type'] = 'text/plain; charset=utf-8';
+	} else if (request.body.mode === 'form') {
+		headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=utf-8';
+	}
+
+	const auth = normalizeAuth(request.auth);
+	if (auth.type === 'basic') {
+		const pair = `${substituteText(auth.username, variables)}:${substituteText(auth.password, variables)}`;
+		headers.Authorization = `Basic ${Buffer.from(pair, 'utf8').toString('base64')}`;
+	} else if (auth.type === 'bearer') {
+		const token = substituteText(auth.token, variables).trim();
+		if (token) {
+			headers.Authorization = `Bearer ${token}`;
+		}
 	}
 
 	for (const header of request.headers) {
@@ -250,26 +326,162 @@ export function buildHeaders(request: ApiRequest, variables: Readonly<Record<str
 			continue;
 		}
 		const name = substituteText(header.name, variables).trim();
+		let key = name;
 		for (const existing of Object.keys(headers)) {
 			if (existing.toLowerCase() === name.toLowerCase()) {
+				// Keep the casing of the header this row replaces instead of adding a duplicate.
+				key = existing;
 				delete headers[existing];
 			}
 		}
-		headers[name] = substituteText(header.value, variables);
+		headers[key] = substituteText(header.value, variables);
 	}
 	return headers;
 }
 
-export function resolveRequest(request: ApiRequest, variables: Readonly<Record<string, string | undefined>>): ResolvedRequest {
+export type FileLoader = (filePath: string) => Promise<Buffer>;
+
+export interface ResolveOptions {
+	/** Reads a multipart file part. Without it, file parts fail with a readable error. */
+	loadFile?: FileLoader;
+	/** Fixed multipart boundary, for tests. */
+	boundary?: string;
+}
+
+const MIME_TYPES: Record<string, string> = {
+	png: 'image/png',
+	jpg: 'image/jpeg',
+	jpeg: 'image/jpeg',
+	gif: 'image/gif',
+	webp: 'image/webp',
+	svg: 'image/svg+xml',
+	pdf: 'application/pdf',
+	json: 'application/json',
+	txt: 'text/plain',
+	csv: 'text/csv',
+	xml: 'application/xml',
+	zip: 'application/zip',
+	mp4: 'video/mp4',
+	mp3: 'audio/mpeg'
+};
+
+function mimeTypeOf(filePath: string): string {
+	const extension = filePath.slice(filePath.lastIndexOf('.') + 1).toLowerCase();
+	return MIME_TYPES[extension] ?? 'application/octet-stream';
+}
+
+function baseName(filePath: string): string {
+	const parts = filePath.split(/[\\/]/);
+	return parts[parts.length - 1] || 'file';
+}
+
+function newBoundary(): string {
+	return `----RedCodeFormBoundary${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
+}
+
+function encodeFormBody(request: ApiRequest, variables: Readonly<Record<string, string | undefined>>): Buffer | undefined {
+	const rows = (request.body.params ?? []).filter(row => row.enabled && row.name.trim().length > 0);
+	if (rows.length === 0) {
+		return undefined;
+	}
+	const text = rows
+		.map(row => `${encodeURIComponent(substituteText(row.name, variables))}=${encodeURIComponent(substituteText(row.value, variables))}`)
+		.join('&');
+	return Buffer.from(text, 'utf8');
+}
+
+async function encodeMultipartBody(
+	request: ApiRequest,
+	variables: Readonly<Record<string, string | undefined>>,
+	boundary: string,
+	loadFile: FileLoader | undefined
+): Promise<Buffer | undefined> {
+	const rows = (request.body.params ?? []).filter(row => row.enabled && row.name.trim().length > 0);
+	if (rows.length === 0) {
+		return undefined;
+	}
+
+	const chunks: Buffer[] = [];
+	for (const row of rows) {
+		const name = substituteText(row.name, variables);
+		if (row.kind === 'file') {
+			const filePath = substituteText(row.value, variables).trim();
+			if (!filePath) {
+				throw new Error(`Multipart field "${name}" has no file selected.`);
+			}
+			if (!loadFile) {
+				throw new Error(`Multipart field "${name}" needs a readable file: ${filePath}`);
+			}
+			let content: Buffer;
+			try {
+				content = await loadFile(filePath);
+			} catch (error) {
+				throw new Error(`Could not read ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+			}
+			chunks.push(Buffer.from(
+				`--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${baseName(filePath)}"\r\n`
+				+ `Content-Type: ${mimeTypeOf(filePath)}\r\n\r\n`,
+				'utf8'
+			));
+			chunks.push(content);
+			chunks.push(Buffer.from('\r\n', 'utf8'));
+		} else {
+			chunks.push(Buffer.from(
+				`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${substituteText(row.value, variables)}\r\n`,
+				'utf8'
+			));
+		}
+	}
+	chunks.push(Buffer.from(`--${boundary}--\r\n`, 'utf8'));
+	return Buffer.concat(chunks);
+}
+
+function bodyTextOf(mode: BodyMode, text: string, variables: Readonly<Record<string, string | undefined>>): Buffer | undefined {
+	if (mode === 'none') {
+		return undefined;
+	}
+	const substituted = substituteText(text, variables);
+	if (substituted.length === 0) {
+		return undefined;
+	}
+	return Buffer.from(substituted, 'utf8');
+}
+
+/**
+ * Turns a request into the exact URL, headers and bytes that go on the wire. `form` and `multipart`
+ * bodies are built here so the panel never has to know about encodings.
+ */
+export async function resolveRequest(
+	request: ApiRequest,
+	variables: Readonly<Record<string, string | undefined>>,
+	options: ResolveOptions = {}
+): Promise<ResolvedRequest> {
 	const url = buildUrl(request, variables);
 	const headers = buildHeaders(request, variables);
-	const text = substituteText(request.body.text, variables);
-	return {
-		method: request.method,
-		url,
-		headers,
-		body: request.body.mode === 'none' || text.length === 0 ? undefined : Buffer.from(text, 'utf8')
-	};
+	const mode = request.body.mode;
+
+	let body: Buffer | undefined;
+	if (mode === 'form') {
+		body = encodeFormBody(request, variables);
+	} else if (mode === 'multipart') {
+		const boundary = options.boundary ?? newBoundary();
+		body = await encodeMultipartBody(request, variables, boundary, options.loadFile);
+		if (body && !hasHeader(headers, 'content-type')) {
+			headers['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
+		}
+	} else {
+		body = bodyTextOf(mode, request.body.text, variables);
+	}
+
+	if (!body) {
+		for (const name of Object.keys(headers)) {
+			if (name.toLowerCase() === 'content-type') {
+				delete headers[name];
+			}
+		}
+	}
+
+	return { method: request.method, url, headers, body };
 }
 
 export function missingVariables(request: ApiRequest, variables: Readonly<Record<string, string | undefined>>): string[] {
@@ -277,8 +489,16 @@ export function missingVariables(request: ApiRequest, variables: Readonly<Record
 		request.url,
 		...request.params.flatMap(param => [param.name, param.value]),
 		...request.headers.flatMap(header => [header.name, header.value]),
-		request.body.text
+		request.body.text,
+		...(request.body.params ?? []).flatMap(param => [param.name, param.value])
 	];
+	const auth = normalizeAuth(request.auth);
+	if (auth.type === 'basic') {
+		pieces.push(auth.username, auth.password);
+	} else if (auth.type === 'bearer') {
+		pieces.push(auth.token);
+	}
+
 	const missing = new Set<string>();
 	for (const piece of pieces) {
 		for (const name of substitute(piece, variables).missing) {
@@ -391,16 +611,30 @@ export function parseHttpFile(text: string, fallbackName: string): ApiRequest[] 
 		}
 		const bodyText = lines.slice(index).join('\n').replace(/\s+$/, '');
 		const contentType = headers.find(header => header.name.toLowerCase() === 'content-type')?.value ?? '';
-		const mode: BodyMode = bodyText.length === 0 ? 'none' : /json/i.test(contentType) ? 'json' : 'text';
+		const mode: BodyMode = bodyText.length === 0
+			? 'none'
+			: /json/i.test(contentType) ? 'json'
+				: /x-www-form-urlencoded/i.test(contentType) ? 'form'
+					: 'text';
 
-		requests.push({
+		const request: ApiRequest = {
 			name: name || `${method} ${url}`,
 			method,
 			url,
 			params: [],
 			headers,
-			body: { mode, text: bodyText }
-		});
+			body: { mode, text: bodyText },
+			auth: { type: 'none', username: '', password: '', token: '' }
+		};
+		if (mode === 'form') {
+			request.body.params = bodyText.split('&').map(pair => {
+				const separator = pair.indexOf('=');
+				const rawName = separator >= 0 ? pair.slice(0, separator) : pair;
+				const rawValue = separator >= 0 ? pair.slice(separator + 1) : '';
+				return { name: decodeURIComponent(rawName), value: decodeURIComponent(rawValue), enabled: true };
+			});
+		}
+		requests.push(request);
 	}
 	if (requests.length === 0) {
 		throw new Error(`No requests found in ${fallbackName}.`);

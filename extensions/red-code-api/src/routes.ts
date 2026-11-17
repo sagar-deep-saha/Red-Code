@@ -133,6 +133,7 @@ export function requestFromRoute(route: LaravelRoute): ApiRequest {
 		url: `{{baseUrl}}${path}`,
 		params: [],
 		headers: [{ name: 'Accept', value: 'application/json', enabled: true }],
-		body: { mode: 'none', text: '' }
+		body: { mode: 'none', text: '' },
+		auth: { type: 'none', username: '', password: '', token: '' }
 	};
 }

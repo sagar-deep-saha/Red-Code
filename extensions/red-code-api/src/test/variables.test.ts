@@ -4,11 +4,11 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { test } from 'node:test';
-import { ENVIRONMENTS_FOLDER, listEnvironments, loadVariables } from '../variables.js';
+import { createEnvironment, ENVIRONMENTS_FOLDER, environmentFileName, listEnvironments, loadVariables } from '../variables.js';
 
 test('variables merge user setting, .env and the selected environment', async () => {
 	const root = await mkdtemp(path.join(tmpdir(), 'redcode-api-'));
@@ -56,6 +56,45 @@ test('listEnvironments sorts the JSON file names', async () => {
 
 		assert.deepEqual(await listEnvironments(root), ['local', 'staging']);
 		assert.deepEqual(await listEnvironments(undefined), []);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('baseUrl follows the final APP_URL unless a source sets baseUrl', async () => {
+	const root = await mkdtemp(path.join(tmpdir(), 'redcode-api-'));
+	try {
+		const environments = path.join(root, ENVIRONMENTS_FOLDER);
+		await mkdir(environments, { recursive: true });
+		await writeFile(path.join(root, '.env'), 'APP_URL=https://env.test/\n', 'utf8');
+		await writeFile(path.join(environments, 'local.json'), JSON.stringify({ APP_URL: 'https://local.test//' }), 'utf8');
+		await writeFile(path.join(environments, 'custom.json'), JSON.stringify({ baseUrl: 'https://explicit.test', APP_URL: 'https://ignored.test' }), 'utf8');
+
+		const local = await loadVariables({ workspaceRoot: root, environment: 'local', userVariables: {} });
+		assert.equal(local.baseUrl, 'https://local.test');
+
+		const custom = await loadVariables({ workspaceRoot: root, environment: 'custom', userVariables: {} });
+		assert.equal(custom.baseUrl, 'https://explicit.test');
+
+		const fromSetting = await loadVariables({ workspaceRoot: root, environment: 'local', userVariables: { baseUrl: 'https://setting.test' } });
+		assert.equal(fromSetting.baseUrl, 'https://setting.test');
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('createEnvironment writes one JSON file and refuses duplicates', async () => {
+	const root = await mkdtemp(path.join(tmpdir(), 'redcode-api-'));
+	try {
+		assert.equal(environmentFileName('Local Dev'), 'Local-Dev.json');
+		assert.equal(environmentFileName('  '), 'environment.json');
+
+		const file = await createEnvironment(root, 'Local Dev');
+		assert.equal(path.basename(file), 'Local-Dev.json');
+		assert.equal(await readFile(file, 'utf8'), '{}\n');
+		await assert.rejects(createEnvironment(root, 'Local Dev'), /already exists/);
+		await assert.rejects(createEnvironment(undefined, 'Local'), /Open a folder/);
+		await assert.rejects(createEnvironment(root, '   '), /needs a name/);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
