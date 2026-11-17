@@ -15,11 +15,17 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | GitHub sync upload fix | `1.147.3` |
 | API client and Git graph | `1.147.4` |
 | API/Git polish, branded installer and watermark | `1.147.5` |
-| Next Red Code build (first x64 + arm64 release) | `1.147.6` |
+| Upstream 1.147 sync, first x64 + arm64 release | `1.147.6` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist. The latest published build is `1.147.5`
-(`RedCode-Setup.exe`, 300,697,496 bytes, sha256 `29e69599…e1e955`).
+must not advertise a download that does not exist. The latest published build is `1.147.6`:
+
+| Asset | Size | SHA-256 |
+|---|---|---|
+| `RedCode-Setup.exe` (x64) | 321,585,859 | `2ad6192b…7c8f8e` |
+| `RedCode-Setup-arm64.exe` | 316,558,663 | `f4ce5460…728d90` |
+
+The release also carries `SHA256SUMS` and `redcode-updates.json`.
 
 ## Platform coverage
 
