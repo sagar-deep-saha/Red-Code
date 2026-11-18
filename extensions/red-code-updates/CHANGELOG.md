@@ -5,6 +5,25 @@ patch for each Red Code build. `1.147.0` was built and installed locally but nev
 has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
+## [1.147.7] — 2026-11-18
+
+### Fixed
+
+- **Windows x64 and arm64 could fail to launch after installing 1.147.6.** The app stopped at
+  startup with `Error: Could not locate the bindings file` for
+  `@vscode/policy-watcher/build/Release/vscode-policy-watcher.node`, so no window ever appeared.
+  The 1.147.6 packages were assembled with dependency scripts disabled, so the native modules were
+  never compiled and the installer shipped without them.
+- Every native module is now compiled against Electron 43.8.9 (Node ABI 148) for **both** x64 and
+  arm64, and the packaged tree is checked for each `.node` binary before an installer is recorded.
+  This covers `@vscode/policy-watcher`, `@vscode/spdlog`, `@vscode/sqlite3`, `@vscode/deviceid`,
+  `@vscode/windows-mutex`, `@vscode/windows-registry`, `@vscode/native-watchdog`,
+  `@vscode/windows-process-tree`, `native-keymap`, `native-is-elevated`, `kerberos` and
+  `@parcel/watcher`.
+
+If you installed 1.147.6 and the window never opened, download 1.147.7 and install it over the
+existing copy; the in-app updater cannot run because the old build never starts.
+
 ## [1.147.6] — 2026-11-17
 
 ### Upstream VS Code 1.147

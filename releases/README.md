@@ -16,14 +16,20 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | API client and Git graph | `1.147.4` |
 | API/Git polish, branded installer and watermark | `1.147.5` |
 | Upstream 1.147 sync, first x64 + arm64 release | `1.147.6` |
+| Native modules compiled for Electron 43.8.9 (startup fix) | `1.147.7` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist. The latest published build is `1.147.6`:
+must not advertise a download that does not exist. The latest published build is `1.147.7`:
 
 | Asset | Size | SHA-256 |
 |---|---|---|
-| `RedCode-Setup.exe` (x64) | 321,585,859 | `2ad6192b…7c8f8e` |
-| `RedCode-Setup-arm64.exe` | 316,558,663 | `f4ce5460…728d90` |
+| `RedCode-Setup.exe` (x64) | 322,772,832 | `7287781c…501864` |
+| `RedCode-Setup-arm64.exe` | 317,610,017 | `23879b64…af882f` |
+
+`1.147.6` was withdrawn as a startup regression: its installers were assembled with dependency
+scripts disabled, so no native module was compiled and the app exited with
+`Could not locate the bindings file`. `1.147.7` is the first build whose x64 and arm64 packages
+carry the Electron 43.8.9 native modules, and it is the build users should install.
 
 The release also carries `SHA256SUMS` and `redcode-updates.json`.
 
@@ -58,6 +64,41 @@ offered when `redCode.updates.includePrerelease` is on.
    Build the two trees sequentially and remove the first one after it is recorded; each tree is
    several GB. `VSCode-win32-arm64` is a real arm64 build (Electron arm64 plus arm64 native
    modules), not the x64 tree renamed.
+
+   **Native modules must be compiled before packaging.** The packaging tasks copy `node_modules`
+   as-is; they never build it. An install that ran with `--config.ignore-scripts=true` (needed to
+   dodge the `@vscode/windows-process-tree` path-length failure) leaves every `.node` binary
+   missing, and the installer then ships an app that dies at startup with
+   `Error: Could not locate the bindings file`. That is what broke `1.147.6`. Compile them for the
+   Electron runtime with the native build hooks from `.pnpmfile.mjs`, once per architecture:
+
+   ```powershell
+   # x64 (host arch)
+   corepack pnpm@12.16.0 rebuild @parcel/watcher @vscode/deviceid @vscode/native-watchdog `
+     @vscode/policy-watcher @vscode/spdlog @vscode/sqlite3 @vscode/windows-mutex `
+     @vscode/windows-registry kerberos native-is-elevated native-keymap
+
+   # arm64 cross build: the host needs Microsoft.VisualStudio.Component.VC.Tools.ARM64
+   # and Microsoft.VisualStudio.Component.VC.Runtimes.ARM64.Spectre
+   $env:npm_config_arch = 'arm64'
+   corepack pnpm@12.16.0 rebuild @parcel/watcher @vscode/deviceid @vscode/native-watchdog `
+     @vscode/policy-watcher @vscode/spdlog @vscode/sqlite3 @vscode/windows-mutex `
+     @vscode/windows-registry kerberos native-is-elevated native-keymap
+   $env:npm_config_arch = $null
+   ```
+
+   `@vscode/windows-process-tree` has to be built outside the repository path; copy its
+   `src/`, `binding.gyp` and a `node_modules/node-addon-api` to a short directory such as `C:\wpa`
+   and run `node-gyp rebuild --arch=<arch>` with `npm_config_runtime=electron`,
+   `npm_config_target=<electron version>` and `npm_config_disturl=https://electronjs.org/headers`,
+   then copy `build\Release\windows_process_tree.node` back. `@vscode/fs-copyfile` is
+   `type: none` on Windows and produces no binary.
+
+   Before packaging, check every binary: the machine field at the PE header offset must be
+   `0x8664` for x64 and `0xAA64` for arm64, and the packaged tree must contain the same list under
+   `resources\app\node_modules.asar.unpacked`. Loading them through
+   `ELECTRON_RUN_AS_NODE=1 <electron.exe> -e "require(...)"` catches a host-ABI build
+   (Node 24 is v137, Electron 43.8.9 is v148).
 
    If `esbuild-bundle-*` aborts with `Build failed: Error: The service was stopped`, the esbuild
    service ran out of memory next to the extension bundling. Build the desktop bundle on its own and

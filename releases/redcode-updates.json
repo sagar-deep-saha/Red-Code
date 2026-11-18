@@ -1,6 +1,32 @@
 {
 	"releases": [
 		{
+			"version": "1.147.7",
+			"date": "2026-11-18T07:12:21.493Z",
+			"prerelease": false,
+			"notes": "### Fixed\n\n- **Windows x64 and arm64 could fail to launch after installing 1.147.6.** The app stopped at\n  startup with `Error: Could not locate the bindings file` for\n  `@vscode/policy-watcher/build/Release/vscode-policy-watcher.node`, so no window ever appeared.\n  The 1.147.6 packages were assembled with dependency scripts disabled, so the native modules were\n  never compiled and the installer shipped without them.\n- Every native module is now compiled against Electron 43.8.9 (Node ABI 148) for **both** x64 and\n  arm64, and the packaged tree is checked for each `.node` binary before an installer is recorded.\n  This covers `@vscode/policy-watcher`, `@vscode/spdlog`, `@vscode/sqlite3`, `@vscode/deviceid`,\n  `@vscode/windows-mutex`, `@vscode/windows-registry`, `@vscode/native-watchdog`,\n  `@vscode/windows-process-tree`, `native-keymap`, `native-is-elevated`, `kerberos` and\n  `@parcel/watcher`.\n\nIf you installed 1.147.6 and the window never opened, download 1.147.7 and install it over the\nexisting copy; the in-app updater cannot run because the old build never starts.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.7",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.7/RedCode-Setup.exe",
+				"sha256": "7287781c9f8b3f74ec6756881faf79c24f0d1903e7b1182603453201b0501864",
+				"size": 322772832
+			},
+			"installers": [
+				{
+					"arch": "x64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.7/RedCode-Setup.exe",
+					"sha256": "7287781c9f8b3f74ec6756881faf79c24f0d1903e7b1182603453201b0501864",
+					"size": 322772832
+				},
+				{
+					"arch": "arm64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.7/RedCode-Setup-arm64.exe",
+					"sha256": "23879b649f051195e02a176b3e3f492592e27bc1f6d162bf67510d0286af882f",
+					"size": 317610017
+				}
+			]
+		},
+		{
 			"version": "1.147.6",
 			"date": "2026-11-17T07:44:44.417Z",
 			"prerelease": false,
