@@ -26,6 +26,9 @@ existing copy; the in-app updater cannot run because the old build never starts.
 
 ## [1.147.6] — 2026-11-17
 
+> **Broken build, do not install.** The native modules were never compiled, so both installers
+> stop at startup with `Error: Could not locate the bindings file`. Fixed in `1.147.7`.
+
 ### Upstream VS Code 1.147
 
 - Track the VS Code `release/1.147` line, bringing the editor fixes, security patches and

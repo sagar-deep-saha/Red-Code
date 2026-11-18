@@ -1,3 +1,8 @@
+> **Do not install this build.** 1.147.6 installers were assembled without compiling the native
+> modules, so the app exits at startup with `Error: Could not locate the bindings file` and no
+> window ever opens. Install [1.147.7](https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.7)
+> instead.
+
 Download `RedCode-Setup.exe` for Windows x64, or `RedCode-Setup-arm64.exe` for Windows on ARM.
 
 ### Upstream VS Code 1.147
