@@ -310,7 +310,7 @@
 	"scripts": {
 		"compile": "node ./esbuild.mts",
 		"watch": "node ./esbuild.mts --watch",
-		"test": "tsc -p tsconfig.json && node --test out/test/model.test.js out/test/variables.test.js out/test/cookies.test.js out/test/routes.test.js out/test/http.test.js out/test/storage.test.js"
+		"test": "tsc -p tsconfig.json && node --test out/test/model.test.js out/test/variables.test.js out/test/cookies.test.js out/test/routes.test.js out/test/http.test.js out/test/storage.test.js out/test/webview.test.js"
 	},
 	"devDependencies": {
 		"@types/node": "24.x"

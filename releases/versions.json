@@ -1,8 +1,34 @@
 {
 	"schemaVersion": 1,
 	"repository": "sagar-deep-saha/Red-Code",
-	"updatedAt": "2026-11-18T07:12:21.500Z",
+	"updatedAt": "2026-11-18T08:27:05.652Z",
 	"releases": [
+		{
+			"version": "1.147.8",
+			"date": "2026-11-18T08:27:05.566Z",
+			"prerelease": false,
+			"notes": "### Fixed\n\n- **The Red Code API panel was dead.** The HTTP method list was empty, the Base URL and request\n  name stayed blank, the Params/Headers tables never filled in and the tab counters showed no\n  numbers — nothing in the panel reacted to a click. The panel script is emitted from a template\n  literal, and the regex `\\/+$` in `retargetRequest` lost its backslash there, so the emitted code\n  contained `replace(//+$/, '')`. That starts a line comment, the rest of the function became\n  invalid JavaScript, and the whole inline script failed to parse with `Unexpected token 'const'`\n  before it could add a single `<option>`.\n- The regex now uses a character class (`/[/]+$/`), which survives the template literal. A new\n  `webview.test.ts` renders the panel and parses the emitted script, so a broken escape fails the\n  test suite instead of shipping.\n\nNothing else changed: this release keeps the 1.147.7 native-module fix, so it starts correctly on\nboth x64 and arm64.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.8",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.8/RedCode-Setup.exe",
+				"sha256": "aa3b24bea3a1000e7a3aa657dec2e23f49e72d5b7ab0715b7eda19c944f58711",
+				"size": 322799689
+			},
+			"installers": [
+				{
+					"arch": "x64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.8/RedCode-Setup.exe",
+					"sha256": "aa3b24bea3a1000e7a3aa657dec2e23f49e72d5b7ab0715b7eda19c944f58711",
+					"size": 322799689
+				},
+				{
+					"arch": "arm64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.8/RedCode-Setup-arm64.exe",
+					"sha256": "9e605f770cd919c0a30af089a724a0d3d385c25cda1403b0438cac7b26887c53",
+					"size": 317607574
+				}
+			]
+		},
 		{
 			"version": "1.147.7",
 			"date": "2026-11-18T07:12:21.493Z",

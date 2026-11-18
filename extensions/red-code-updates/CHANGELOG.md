@@ -5,6 +5,24 @@ patch for each Red Code build. `1.147.0` was built and installed locally but nev
 has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
+## [1.147.8] — 2026-11-18
+
+### Fixed
+
+- **The Red Code API panel was dead.** The HTTP method list was empty, the Base URL and request
+  name stayed blank, the Params/Headers tables never filled in and the tab counters showed no
+  numbers — nothing in the panel reacted to a click. The panel script is emitted from a template
+  literal, and the regex `\/+$` in `retargetRequest` lost its backslash there, so the emitted code
+  contained `replace(//+$/, '')`. That starts a line comment, the rest of the function became
+  invalid JavaScript, and the whole inline script failed to parse with `Unexpected token 'const'`
+  before it could add a single `<option>`.
+- The regex now uses a character class (`/[/]+$/`), which survives the template literal. A new
+  `webview.test.ts` renders the panel and parses the emitted script, so a broken escape fails the
+  test suite instead of shipping.
+
+Nothing else changed: this release keeps the 1.147.7 native-module fix, so it starts correctly on
+both x64 and arm64.
+
 ## [1.147.7] — 2026-11-18
 
 ### Fixed
@@ -25,6 +43,9 @@ If you installed 1.147.6 and the window never opened, download 1.147.7 and insta
 existing copy; the in-app updater cannot run because the old build never starts.
 
 ## [1.147.6] — 2026-11-17
+
+> **Broken build, do not install.** The native modules were never compiled, so both installers
+> stop at startup with `Error: Could not locate the bindings file`. Fixed in `1.147.7`.
 
 ### Upstream VS Code 1.147
 

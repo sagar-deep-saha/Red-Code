@@ -17,14 +17,15 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | API/Git polish, branded installer and watermark | `1.147.5` |
 | Upstream 1.147 sync, first x64 + arm64 release | `1.147.6` |
 | Native modules compiled for Electron 43.8.9 (startup fix) | `1.147.7` |
+| API panel script escaping fix | `1.147.8` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist. The latest published build is `1.147.7`:
+must not advertise a download that does not exist. The latest published build is `1.147.8`:
 
 | Asset | Size | SHA-256 |
 |---|---|---|
-| `RedCode-Setup.exe` (x64) | 322,772,832 | `7287781c…501864` |
-| `RedCode-Setup-arm64.exe` | 317,610,017 | `23879b64…af882f` |
+| `RedCode-Setup.exe` (x64) | 322,799,689 | `aa3b24be…f58711` |
+| `RedCode-Setup-arm64.exe` | 317,607,574 | `9e605f77…8687c5` |
 
 `1.147.6` was withdrawn as a startup regression: its installers were assembled with dependency
 scripts disabled, so no native module was compiled and the app exited with
@@ -111,6 +112,13 @@ offered when `redCode.updates.includePrerelease` is on.
 
    `vscode-win32-<arch>-ci` skips recompiling the core and packages whatever is already in
    `out-vscode`.
+
+   The `-ci` task packages extensions from the `.build/extensions` staging cache, not from
+   `extensions/`, so an edit to a built-in extension is invisible to it until that cache is
+   refreshed. Run `corepack pnpm@12.16.0 run gulp compile-non-native-extensions-build` (or the
+   `compile-native-extensions-build` / `compile-copilot-extension-build` tasks for those groups)
+   before packaging. A stale `red-code-api` bundle reached `1.147.7` exactly this way: the fixed
+   `dist` was in `extensions/`, while `.build/extensions/red-code-api` still held the old one.
 
    `vscode-win32-x64-inno-updater` copies `inno_updater.exe` and `vcruntime140.dll` into
    `<app tree>\tools\` and stamps the Red Code icon on the updater. The setup task does not

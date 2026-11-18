@@ -704,7 +704,9 @@ export function renderRequestPanel(webview: vscode.Webview, state: PanelState): 
 	});
 
 	function retargetRequest(previous) {
-		const oldBase = (previous || '').replace(/\/+$/, '');
+		// NOTE: this file emits the panel script through a template literal, so an escaped solidus
+		// would collapse to a plain solidus and start a line comment. Use a character class.
+		const oldBase = (previous || '').replace(/[/]+$/, '');
 		const currentUrl = url.value;
 		if (!oldBase || !currentUrl.toLowerCase().startsWith(oldBase.toLowerCase())) {
 			return;
