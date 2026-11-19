@@ -30,6 +30,7 @@ import {
 	statusSummary
 } from './git.js';
 import { computeGraph, GraphRow, graphWidth, isMerge, refLabel } from './graph.js';
+import { GitHubAvatars } from './githubAvatars.js';
 import { CommitDetails, CommitStats, FileChange, formatRelativeDate, WorkingFile } from './log.js';
 import { createMatcher, SearchOptions } from './search.js';
 import { renderGraphHtml } from './graphHtml.js';
@@ -39,6 +40,8 @@ export interface GraphPanelDeps {
 	root(): string | undefined;
 	pageSize(): number;
 	avatarLookupEnabled(): boolean;
+	/** Where author photos come from when avatars are enabled. */
+	avatarProvider(): 'github' | 'gravatar';
 	/** Called after a panel action changed the working tree state. */
 	onRepositoryChanged?(): void;
 }
@@ -115,11 +118,14 @@ export class GraphPanel implements vscode.Disposable {
 	private query = '';
 	private searchOptions: SearchOptions = {};
 	private selected: { details: CommitDetails; files: FileChange[] } | undefined;
+	private readonly githubAvatars = new GitHubAvatars();
+	private readonly avatars = new Map<string, string>();
 
 	constructor(private readonly deps: GraphPanelDeps) { }
 
 	dispose(): void {
 		this.panel?.dispose();
+		this.githubAvatars.dispose();
 		for (const disposable of this.disposables) {
 			disposable.dispose();
 		}
@@ -127,6 +133,12 @@ export class GraphPanel implements vscode.Disposable {
 
 	get isOpen(): boolean {
 		return this.panel !== undefined;
+	}
+
+	/** Drops every resolved avatar, so the next refresh asks GitHub again. */
+	clearAvatars(): void {
+		this.githubAvatars.clear();
+		this.avatars.clear();
 	}
 
 	async open(): Promise<void> {
@@ -203,10 +215,35 @@ export class GraphPanel implements vscode.Disposable {
 			}
 
 			this.visible = this.filterRows();
+			await this.loadAvatars(root, this.rows.map(row => ({ sha: row.commit.sha, email: row.commit.email })));
 			await this.postCommits();
 		} catch (error) {
 			await this.fail(error);
 		}
+	}
+
+	/**
+	 * Resolves GitHub photos for the commits of the current page. The lookup is silent: without a
+	 * GitHub session the graph keeps the initials, and the Gravatar provider never calls it.
+	 */
+	private async loadAvatars(root: string, commits: readonly { sha: string; email: string }[]): Promise<void> {
+		if (!this.deps.avatarLookupEnabled() || this.deps.avatarProvider() !== 'github') {
+			return;
+		}
+		const resolved = await this.githubAvatars.resolve(root, commits);
+		for (const [email, url] of resolved) {
+			this.avatars.set(email, url);
+		}
+	}
+
+	private avatarFor(email: string): string | undefined {
+		if (!this.deps.avatarLookupEnabled()) {
+			return undefined;
+		}
+		if (this.deps.avatarProvider() === 'gravatar') {
+			return gravatarUrl(email, true);
+		}
+		return this.avatars.get(email.trim().toLowerCase());
 	}
 
 	private filterRows(): GraphRow[] {
@@ -232,7 +269,7 @@ export class GraphPanel implements vscode.Disposable {
 			committer: commit.committer,
 			committerEmail: commit.committerEmail,
 			committerRelative: formatRelativeDate(commit.committerDate),
-			avatarUrl: gravatarUrl(commit.email, this.deps.avatarLookupEnabled()),
+			avatarUrl: this.avatarFor(commit.email),
 			refs: commit.refs.map(ref => {
 				const label = refLabel(ref, this.remotes);
 				return { text: label.name, kind: label.kind };
@@ -392,13 +429,17 @@ export class GraphPanel implements vscode.Disposable {
 			additions: total.additions + file.additions,
 			deletions: total.deletions + file.deletions
 		}), emptyStats());
+		await this.loadAvatars(root, [
+			{ sha: details.sha, email: details.email },
+			{ sha: details.sha, email: details.committerEmail }
+		]);
 		await this.post({
 			type: 'commit',
 			details,
 			files,
 			stats,
-			authorAvatar: gravatarUrl(details.email, this.deps.avatarLookupEnabled()),
-			committerAvatar: gravatarUrl(details.committerEmail, this.deps.avatarLookupEnabled())
+			authorAvatar: this.avatarFor(details.email),
+			committerAvatar: this.avatarFor(details.committerEmail)
 		});
 	}
 

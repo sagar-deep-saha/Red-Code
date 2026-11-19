@@ -21,7 +21,10 @@ export function activate(context: vscode.ExtensionContext): void {
 	const panel = new GraphPanel({
 		root: () => root,
 		pageSize: () => vscode.workspace.getConfiguration('redCode.git').get<number>('graphPageSize', 300),
-		avatarLookupEnabled: () => vscode.workspace.getConfiguration('redCode.git').get<boolean>('graphAvatars.enabled', false)
+		avatarLookupEnabled: () => vscode.workspace.getConfiguration('redCode.git').get<boolean>('graphAvatars.enabled', false),
+		avatarProvider: () => vscode.workspace.getConfiguration('redCode.git').get<string>('graphAvatars.provider', 'github') === 'gravatar'
+			? 'gravatar'
+			: 'github'
 	});
 
 	async function workspaceRoots(): Promise<string[]> {
@@ -143,6 +146,19 @@ export function activate(context: vscode.ExtensionContext): void {
 		vscode.workspace.onDidChangeWorkspaceFolders(() => {
 			root = undefined;
 			void updateStatus();
+		}),
+		vscode.workspace.onDidChangeConfiguration(event => {
+			if (event.affectsConfiguration('redCode.git.graphAvatars')) {
+				panel.clearAvatars();
+				void panel.refresh();
+			}
+		}),
+		vscode.authentication.onDidChangeSessions(event => {
+			if (event.provider.id === 'github') {
+				// Signing in to GitHub (through Copilot or the Accounts menu) adds the photos.
+				panel.clearAvatars();
+				void panel.refresh();
+			}
 		})
 	);
 

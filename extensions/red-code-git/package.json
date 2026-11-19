@@ -87,6 +87,19 @@
 					"default": false,
 					"description": "%graphAvatarsEnabledDescription%"
 				},
+				"redCode.git.graphAvatars.provider": {
+					"type": "string",
+					"enum": [
+						"github",
+						"gravatar"
+					],
+					"enumDescriptions": [
+						"Use the signed-in GitHub account and the GitHub commit API. No sign-in prompt is shown and no email leaves the machine.",
+						"Use Gravatar. Sends a hashed author email to gravatar.com; no GitHub access is needed."
+					],
+					"default": "github",
+					"description": "%graphAvatarsProviderDescription%"
+				},
 				"redCode.git.blame.enabled": {
 					"type": "boolean",
 					"default": false,
@@ -98,7 +111,7 @@
 	"scripts": {
 		"compile": "node ./esbuild.mts",
 		"watch": "node ./esbuild.mts --watch",
-		"test": "tsc -p tsconfig.json && node --test out/test/graph.test.js out/test/log.test.js out/test/search.test.js out/test/webview.test.js out/test/blame.test.js out/test/avatars.test.js"
+		"test": "tsc -p tsconfig.json && node --test out/test/graph.test.js out/test/log.test.js out/test/search.test.js out/test/webview.test.js out/test/blame.test.js out/test/avatars.test.js out/test/githubAvatars.test.js"
 	},
 	"devDependencies": {
 		"@types/node": "24.x"

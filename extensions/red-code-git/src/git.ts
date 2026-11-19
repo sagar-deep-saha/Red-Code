@@ -232,6 +232,15 @@ export async function listRemotes(root: string): Promise<string[]> {
 	}
 }
 
+/** The `remote.origin.url`, or an empty string when the repository has no origin. */
+export async function remoteUrl(root: string): Promise<string> {
+	try {
+		return (await runGitText(root, ['config', '--get', 'remote.origin.url'])).trim();
+	} catch {
+		return '';
+	}
+}
+
 /** SHAs reachable from HEAD, used to dim the rows of other branches. */
 export async function headCommits(root: string, limit: number): Promise<Set<string>> {
 	const raw = await runGitText(root, ['--no-pager', 'rev-list', `--max-count=${limit}`, 'HEAD']);

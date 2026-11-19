@@ -16,7 +16,7 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${scriptNonce}'; img-src ${webview.cspSource} https://www.gravatar.com https://*.gravatar.com data:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${scriptNonce}'; img-src ${webview.cspSource} https://www.gravatar.com https://*.gravatar.com https://avatars.githubusercontent.com https://*.githubusercontent.com data:;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 	:root { color-scheme: light dark; --w-graph: 86px; --cols: 86px minmax(220px, 1fr) 160px 140px 104px 104px; }

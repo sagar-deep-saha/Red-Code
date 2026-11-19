@@ -5,6 +5,25 @@ patch for each Red Code build. `1.147.0` was built and installed locally but nev
 has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
+## [1.147.10] — 2026-11-19
+
+### Git graph
+
+- **The commit graph can show the real GitHub profile photo of every author.** Enable
+  `redCode.git.graphAvatars.enabled` and the author and committer columns, the details pane and the
+  working-changes row show the photo instead of initials.
+- **No sign-in prompt and no GitLens account.** The graph reuses the GitHub session Copilot already
+  created, resolves the photo through the public commit API by author email and caches it, so a
+  page of commits from a few authors costs a handful of requests. Without a session, on a
+  non-GitHub remote or when GitHub has no photo, the initials stay. Signing in or out refreshes the
+  panel automatically.
+- `redCode.git.graphAvatars.provider` chooses the source: `github` (default) uses the GitHub
+  session, `gravatar` sends a hashed author email to Gravatar without GitHub access. Both paths
+  keep the graph read-only.
+
+Nothing else changed: this release keeps the 1.147.9 GitLens-parity graph, the 1.147.8 API-panel
+fix and the 1.147.7 native-module fix.
+
 ## [1.147.9] — 2026-11-19
 
 ### Git graph

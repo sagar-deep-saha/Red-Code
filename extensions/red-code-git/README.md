@@ -32,8 +32,18 @@ opens the changes. The header stays visible while the list scrolls, and the list
 large pages stay smooth.
 
 The list is paged. **Load More** requests the next page; the page size is controlled by
-`redCode.git.graphPageSize` (default 300). Author initials are shown by default. To load Gravatar
-photos, enable `redCode.git.graphAvatars.enabled`; this sends a hashed author email to Gravatar.
+`redCode.git.graphPageSize` (default 300). Author initials are shown by default. Enable
+`redCode.git.graphAvatars.enabled` to show real photos in the graph and in the commit details.
+
+Photos come from GitHub by default (`redCode.git.graphAvatars.provider` = `github`). The graph
+reuses the GitHub account you are already signed in with — Copilot creates that session — and never
+opens a sign-in prompt: without a session, or for a repository that is not hosted on GitHub, the
+initials stay. The avatar is resolved from the public commit API by author email and cached, so a
+page of commits from a few authors costs a few requests. Signing in later (or out) refreshes the
+panel automatically.
+
+Set the provider to `gravatar` instead if you prefer not to give the graph GitHub access; that path
+sends a hashed author email to Gravatar. Either way the graph still stays read-only.
 
 ### Search
 
@@ -71,7 +81,8 @@ to the clipboard.
 | Setting | Default | Meaning |
 |---|---|---|
 | `redCode.git.graphPageSize` | `300` | Commits loaded per page, 50–5000. **Load More** adds another page. |
-| `redCode.git.graphAvatars.enabled` | `false` | Load author photos from Gravatar. Sends a hashed author email to Gravatar; otherwise initials are shown. |
+| `redCode.git.graphAvatars.enabled` | `false` | Show author photos in the graph and details pane. Uses the signed-in GitHub account silently; falls back to initials. |
+| `redCode.git.graphAvatars.provider` | `github` | `github` resolves photos through the GitHub session and commit API. `gravatar` sends a hashed author email to Gravatar instead. |
 | `redCode.git.blame.enabled` | `false` | Inline blame annotations in the active editor. |
 
 The graph layout (visible columns, column widths, changes style, minimap and details pane) is

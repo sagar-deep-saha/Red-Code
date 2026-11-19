@@ -19,14 +19,15 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | Native modules compiled for Electron 43.8.9 (startup fix) | `1.147.7` |
 | API panel script escaping fix | `1.147.8` |
 | GitLens-parity commit graph | `1.147.9` |
+| GitHub profile photos in the commit graph | `1.147.10` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist. The latest published build is `1.147.9`:
+must not advertise a download that does not exist. The latest published build is `1.147.10`:
 
 | Asset | Size | SHA-256 |
 |---|---|---|
-| `RedCode-Setup.exe` (x64) | 322,830,271 | `ca587d89…a6fc14` |
-| `RedCode-Setup-arm64.exe` | 317,634,222 | `17cd88ee…43b828` |
+| `RedCode-Setup.exe` (x64) | 322,796,667 | `1e587048…c49c1c` |
+| `RedCode-Setup-arm64.exe` | 317,646,155 | `69016e4a…7199cb7` |
 
 `1.147.6` was withdrawn as a startup regression: its installers were assembled with dependency
 scripts disabled, so no native module was compiled and the app exited with

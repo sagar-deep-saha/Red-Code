@@ -1,8 +1,34 @@
 {
 	"schemaVersion": 1,
 	"repository": "sagar-deep-saha/Red-Code",
-	"updatedAt": "2026-11-19T01:06:48.449Z",
+	"updatedAt": "2026-11-19T02:27:01.817Z",
 	"releases": [
+		{
+			"version": "1.147.10",
+			"date": "2026-11-19T02:27:01.803Z",
+			"prerelease": false,
+			"notes": "### Git graph\n\n- **The commit graph can show the real GitHub profile photo of every author.** Enable\n  `redCode.git.graphAvatars.enabled` and the author and committer columns, the details pane and the\n  working-changes row show the photo instead of initials.\n- **No sign-in prompt and no GitLens account.** The graph reuses the GitHub session Copilot already\n  created, resolves the photo through the public commit API by author email and caches it, so a\n  page of commits from a few authors costs a handful of requests. Without a session, on a\n  non-GitHub remote or when GitHub has no photo, the initials stay. Signing in or out refreshes the\n  panel automatically.\n- `redCode.git.graphAvatars.provider` chooses the source: `github` (default) uses the GitHub\n  session, `gravatar` sends a hashed author email to Gravatar without GitHub access. Both paths\n  keep the graph read-only.\n\nNothing else changed: this release keeps the 1.147.9 GitLens-parity graph, the 1.147.8 API-panel\nfix and the 1.147.7 native-module fix.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.10",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.10/RedCode-Setup.exe",
+				"sha256": "1e5870485fe3d419bd94d9e4730a15d5d5d641f5753e2f71e984dc0b28c49c1c",
+				"size": 322796667
+			},
+			"installers": [
+				{
+					"arch": "x64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.10/RedCode-Setup.exe",
+					"sha256": "1e5870485fe3d419bd94d9e4730a15d5d5d641f5753e2f71e984dc0b28c49c1c",
+					"size": 322796667
+				},
+				{
+					"arch": "arm64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.10/RedCode-Setup-arm64.exe",
+					"sha256": "69016e4aabd65beea5534948d401aa87cc315b13f8c9847e1beb59e357199cb7",
+					"size": 317646155
+				}
+			]
+		},
 		{
 			"version": "1.147.9",
 			"date": "2026-11-19T01:06:48.439Z",
