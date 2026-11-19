@@ -20,14 +20,15 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | API panel script escaping fix | `1.147.8` |
 | GitLens-parity commit graph | `1.147.9` |
 | GitHub profile photos in the commit graph | `1.147.10` |
+| Classic square VS Code layout by default | `1.147.11` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist. The latest published build is `1.147.10`:
+must not advertise a download that does not exist. The latest published build is `1.147.11`:
 
 | Asset | Size | SHA-256 |
 |---|---|---|
-| `RedCode-Setup.exe` (x64) | 322,796,667 | `1e587048…c49c1c` |
-| `RedCode-Setup-arm64.exe` | 317,646,155 | `69016e4a…7199cb7` |
+| `RedCode-Setup.exe` (x64) | 322,628,342 | `d64c64c0…f1a6eef` |
+| `RedCode-Setup-arm64.exe` | 317,429,086 | `727f0a54…73087523` |
 
 `1.147.6` was withdrawn as a startup regression: its installers were assembled with dependency
 scripts disabled, so no native module was compiled and the app exited with

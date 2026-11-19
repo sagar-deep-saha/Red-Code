@@ -848,9 +848,8 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 			},
 			[LayoutSettings.MODERN_UI]: {
 				'type': 'boolean',
-				'default': true,
-				'description': localize('modernUI', "Controls whether the Modern UI Update is enabled. When on, the side bars and bottom panel are shown as floating cards with rounded corners and gaps, and a set of refreshed workbench styles is applied, matching the Agents window design."),
-				experiment: { mode: 'auto' },
+				'default': false,
+				'description': localize('modernUI', "Controls whether the Modern UI Update is enabled. When on, the side bars and bottom panel are shown as floating cards with rounded corners and gaps, and a set of refreshed workbench styles is applied, matching the Agents window design. Red Code keeps the classic square VS Code layout by default.")
 			},
 			[LayoutSettings.MODERN_UI_UPPERCASE_VIEW_HEADERS]: {
 				'type': 'boolean',
