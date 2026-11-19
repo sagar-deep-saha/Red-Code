@@ -5,13 +5,14 @@
 
 import { spawn } from 'node:child_process';
 import { CommitNode, parseCommitLog } from './graph.js';
-import { CommitDetails, FileChange, parseCommitDetails, parseNumstat } from './log.js';
+import { CommitDetails, CommitStats, FileChange, parseCommitDetails, parseLogStats, parseNumstat, parseStatus, WorkingFile } from './log.js';
 
 /**
  * Read-only wrapper around the git CLI for the graph and the blame decorations.
  *
- * Only `rev-parse`, `log`, `show`, `blame` and `status` are issued. Nothing runs hooks, filters,
- * a pager or an editor, and the caller never passes a shell string.
+ * Only `rev-parse`, `log`, `show`, `blame`, `status`, `remote`, `for-each-ref`
+ * and `config --get` are issued. Nothing runs hooks, filters, a pager or an
+ * editor, and the caller never passes a shell string.
  */
 
 const DEFAULT_LIMIT = 64 * 1024 * 1024;
@@ -116,32 +117,125 @@ export async function repositoryRoot(start: string): Promise<string | undefined>
 export interface RepositoryStatus {
 	branch: string;
 	dirtyFiles: number;
+	files: WorkingFile[];
 }
 
 export async function statusSummary(root: string): Promise<RepositoryStatus> {
 	const branch = (await runGitText(root, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim();
 	const dirty = await runGitText(root, ['status', '--porcelain=v1', '-z']);
-	const dirtyFiles = dirty.split('\0').filter(entry => entry.length > 2).length;
-	return { branch: branch || 'HEAD', dirtyFiles };
+	const files = parseStatus(dirty);
+	return { branch: branch || 'HEAD', dirtyFiles: files.length, files };
 }
+
+export type LogScope = 'all' | 'current' | 'local' | 'remote' | 'tags';
 
 export interface LogOptions {
 	all?: boolean;
 	limit: number;
+	/** A branch, tag or SHA to walk instead of the whole repository. */
+	rev?: string;
+	scope?: LogScope;
 }
 
-export async function logCommits(root: string, options: LogOptions): Promise<CommitNode[]> {
-	const args = [
+function scopeArgs(options: LogOptions): string[] {
+	if (options.rev) {
+		return [options.rev];
+	}
+	switch (options.scope ?? (options.all === false ? 'current' : 'all')) {
+		case 'local': return ['--branches'];
+		case 'remote': return ['--remotes'];
+		case 'tags': return ['--tags'];
+		case 'current': return ['HEAD'];
+		default: return ['--all'];
+	}
+}
+
+const LOG_FORMAT = '%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%ad%x1f%cn%x1f%ce%x1f%cd%x1f%D%x1f%s%x1e';
+
+function logArgs(options: LogOptions, pretty: string): string[] {
+	return [
 		'-c', 'core.quotepath=false',
 		'--no-pager',
 		'log',
-		...(options.all ? ['--all'] : []),
+		...scopeArgs(options),
 		'--date-order',
 		'--date=iso-strict',
 		`-n${options.limit}`,
-		'--pretty=format:%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%ad%x1f%D%x1f%s%x1e'
+		`--pretty=format:${pretty}`
 	];
-	return parseCommitLog(await runGitText(root, args));
+}
+
+export async function logCommits(root: string, options: LogOptions): Promise<CommitNode[]> {
+	return parseCommitLog(await runGitText(root, logArgs(options, LOG_FORMAT)));
+}
+
+/** Additions and deletions per commit for the rows in the same page. */
+export async function commitStats(root: string, options: LogOptions): Promise<Map<string, CommitStats>> {
+	const raw = await runGitText(root, [
+		...logArgs(options, '%x1e%H'),
+		'--numstat',
+		'-z',
+		'--no-ext-diff',
+		'--no-color'
+	]);
+	return parseLogStats(raw);
+}
+
+export interface Branches {
+	current: string;
+	local: string[];
+	remote: string[];
+	tags: string[];
+}
+
+export async function listBranches(root: string): Promise<Branches> {
+	const raw = await runGitText(root, [
+		'--no-pager',
+		'for-each-ref',
+		'--format=%(refname)%09%(HEAD)',
+		'refs/heads',
+		'refs/remotes',
+		'refs/tags'
+	]);
+	const branches: Branches = { current: '', local: [], remote: [], tags: [] };
+	for (const line of raw.split(/\r?\n/)) {
+		const [ref, head] = line.split('\t');
+		if (!ref) {
+			continue;
+		}
+		if (ref.startsWith('refs/heads/')) {
+			const name = ref.slice('refs/heads/'.length);
+			branches.local.push(name);
+			if (head === '*') {
+				branches.current = name;
+			}
+		} else if (ref.startsWith('refs/remotes/')) {
+			const name = ref.slice('refs/remotes/'.length);
+			if (!name.endsWith('/HEAD')) {
+				branches.remote.push(name);
+			}
+		} else if (ref.startsWith('refs/tags/')) {
+			branches.tags.push(ref.slice('refs/tags/'.length));
+		}
+	}
+	branches.local.sort((left, right) => left.localeCompare(right));
+	branches.remote.sort((left, right) => left.localeCompare(right));
+	return branches;
+}
+
+export async function listRemotes(root: string): Promise<string[]> {
+	try {
+		const raw = await runGitText(root, ['remote']);
+		return raw.split(/\r?\n/).map(value => value.trim()).filter(value => value.length > 0);
+	} catch {
+		return [];
+	}
+}
+
+/** SHAs reachable from HEAD, used to dim the rows of other branches. */
+export async function headCommits(root: string, limit: number): Promise<Set<string>> {
+	const raw = await runGitText(root, ['--no-pager', 'rev-list', `--max-count=${limit}`, 'HEAD']);
+	return new Set(raw.split(/\r?\n/).map(value => value.trim()).filter(value => value.length > 0));
 }
 
 export async function commitDetails(root: string, sha: string): Promise<CommitDetails | undefined> {
@@ -151,7 +245,7 @@ export async function commitDetails(root: string, sha: string): Promise<CommitDe
 		'show',
 		'-s',
 		'--date=iso-strict',
-		'--pretty=format:%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%ad%x1f%D%x1f%s%x1f%b',
+		'--pretty=format:%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%ad%x1f%cn%x1f%ce%x1f%cd%x1f%D%x1f%s%x1f%b',
 		sha
 	]);
 	return parseCommitDetails(raw);
@@ -175,9 +269,7 @@ export async function commitFiles(root: string, sha: string): Promise<FileChange
 
 /** The patch of one file in one commit; the caller truncates for display. */
 export async function commitPatch(root: string, sha: string, file: string): Promise<string> {
-	if (!file || file.includes('\0') || file.startsWith('/') || file.split('/').includes('..')) {
-		throw new GitError(`Refusing unsafe repository path: ${file}`);
-	}
+	guardPath(file);
 	return runGitText(root, [
 		'-c', 'core.quotepath=false',
 		'--no-pager',
@@ -189,6 +281,18 @@ export async function commitPatch(root: string, sha: string, file: string): Prom
 		'--',
 		file
 	], 8 * 1024 * 1024);
+}
+
+/** File contents at a revision, for the read-only diff editor. */
+export async function fileAtRevision(root: string, sha: string, file: string): Promise<string> {
+	guardPath(file);
+	return runGitText(root, ['-c', 'core.quotepath=false', '--no-pager', 'show', `${sha}:${file}`], 32 * 1024 * 1024);
+}
+
+function guardPath(file: string): void {
+	if (!file || file.includes('\0') || file.startsWith('/') || file.split('/').includes('..')) {
+		throw new GitError(`Refusing unsafe repository path: ${file}`);
+	}
 }
 
 export async function blamePorcelain(root: string, file: string): Promise<string> {

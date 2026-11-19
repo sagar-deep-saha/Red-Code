@@ -98,7 +98,7 @@
 	"scripts": {
 		"compile": "node ./esbuild.mts",
 		"watch": "node ./esbuild.mts --watch",
-		"test": "tsc -p tsconfig.json && node --test out/test/graph.test.js out/test/log.test.js out/test/blame.test.js out/test/avatars.test.js"
+		"test": "tsc -p tsconfig.json && node --test out/test/graph.test.js out/test/log.test.js out/test/search.test.js out/test/webview.test.js out/test/blame.test.js out/test/avatars.test.js"
 	},
 	"devDependencies": {
 		"@types/node": "24.x"

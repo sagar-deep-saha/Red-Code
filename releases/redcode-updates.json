@@ -1,6 +1,32 @@
 {
 	"releases": [
 		{
+			"version": "1.147.9",
+			"date": "2026-11-19T01:06:48.439Z",
+			"prerelease": false,
+			"notes": "### Git graph\n\n- **The commit graph is now a GitLens-style graph, not a simplified one.** It has separate\n  graph, branch/tag, commit message, author, committer, date, SHA and changes columns, a sticky\n  header, resizable column edges and a columns menu that hides any column and switches the changes\n  column between a bar, numbers and squares.\n- Lanes are drawn as smooth bezier curves instead of straight segments, the minimap can be\n  clicked to jump, and rows outside the current branch are dimmed.\n- A working-changes row lists uncommitted files; selecting a file opens its diff against `HEAD`,\n  and untracked files diff against an empty document.\n- Every commit row has hover actions and a context menu: copy the SHA or message, open the commit\n  changes, compare the commit with the working tree, show details and refresh.\n- Select a commit for a details pane with author and committer dates, refs, message body, a file\n  summary and per-file additions/deletions. Each file opens a real read-only diff between the\n  commit and its first parent, and the pane is resizable, toggleable with **Alt+D** and remembers\n  its state.\n- The branch chip and ref pills filter the history by branch, remote or tag, with all, current,\n  local, remote and tag scopes. Filtering stays read-only: no branch is ever checked out.\n- Search now runs in the extension host with GitLens-style `message:`, `commit:`, `author:`,\n  `committer:`, `sha:`, `ref:`, `is:merge`, `after:` and `before:` prefixes, negation, quoted\n  values and match case, whole word, regular expression and match-all options. **F3** and\n  **Shift+F3** step through matches.\n\nNothing else changed: this release keeps the 1.147.8 API-panel fix and the 1.147.7 native-module\nfix, so it starts and behaves correctly on both x64 and arm64.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.9",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.9/RedCode-Setup.exe",
+				"sha256": "ca587d89784fe1e839570b62a43615fcc2e2a3c4bd67f29e6eca7892bca6fc14",
+				"size": 322830271
+			},
+			"installers": [
+				{
+					"arch": "x64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.9/RedCode-Setup.exe",
+					"sha256": "ca587d89784fe1e839570b62a43615fcc2e2a3c4bd67f29e6eca7892bca6fc14",
+					"size": 322830271
+				},
+				{
+					"arch": "arm64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.9/RedCode-Setup-arm64.exe",
+					"sha256": "17cd88ee31405f8b246979fb367600643e89c82571461cd9c566a5955343b828",
+					"size": 317634222
+				}
+			]
+		},
+		{
 			"version": "1.147.8",
 			"date": "2026-11-18T08:27:05.566Z",
 			"prerelease": false,

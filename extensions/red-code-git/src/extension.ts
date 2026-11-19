@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode';
 import { BlameDecorations } from './blameDecorations.js';
+import { GitContentProvider } from './contentProvider.js';
 import { GitError, logCommits, repositoryRoot, statusSummary } from './git.js';
 import { GraphPanel } from './graphView.js';
 
@@ -15,6 +16,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	let statusItem: vscode.StatusBarItem | undefined;
 	let timer: NodeJS.Timeout | undefined;
 
+	const provider = new GitContentProvider();
 	const blame = new BlameDecorations();
 	const panel = new GraphPanel({
 		root: () => root,
@@ -90,8 +92,10 @@ export function activate(context: vscode.ExtensionContext): void {
 	}
 
 	context.subscriptions.push(
+		provider,
 		blame,
 		panel,
+		vscode.workspace.registerTextDocumentContentProvider(GitContentProvider.scheme, provider),
 		vscode.commands.registerCommand('redCode.git.showGraph', async () => {
 			const resolved = await resolveRoot(true);
 			if (!resolved) {
@@ -101,6 +105,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			await panel.open();
 		}),
 		vscode.commands.registerCommand('redCode.git.refresh', async () => {
+			provider.clear();
 			await panel.refresh();
 			await updateStatus();
 		}),

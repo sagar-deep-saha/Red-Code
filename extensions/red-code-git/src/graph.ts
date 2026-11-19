@@ -15,6 +15,9 @@ export interface CommitNode {
 	author: string;
 	email: string;
 	date: string;
+	committer: string;
+	committerEmail: string;
+	committerDate: string;
 	refs: string[];
 	subject: string;
 }
@@ -33,7 +36,12 @@ export interface RefLabel {
 
 const SHA_PATTERN = /^[0-9a-f]{40,64}$/i;
 
-/** Parses the `\x1f`/`\x1e` separated output of `git log`. */
+/**
+ * Parses the `\x1f`/`\x1e` separated output of `git log`.
+ *
+ * Fields: sha, short, parents, author, email, author date, committer,
+ * committer email, committer date, decorations, subject.
+ */
 export function parseCommitLog(raw: string): CommitNode[] {
 	const commits: CommitNode[] = [];
 
@@ -44,11 +52,11 @@ export function parseCommitLog(raw: string): CommitNode[] {
 		}
 
 		const fields = text.split('\x1f');
-		if (fields.length < 8) {
+		if (fields.length < 11) {
 			continue;
 		}
 
-		const [sha, short, parents, author, email, date, refs, ...subjectParts] = fields;
+		const [sha, short, parents, author, email, date, committer, committerEmail, committerDate, refs, ...subjectParts] = fields;
 		if (!SHA_PATTERN.test(sha)) {
 			continue;
 		}
@@ -60,6 +68,9 @@ export function parseCommitLog(raw: string): CommitNode[] {
 			author,
 			email,
 			date,
+			committer,
+			committerEmail,
+			committerDate,
 			refs: refs.split(',').map(ref => ref.trim()).filter(ref => ref.length > 0),
 			subject: subjectParts.join('\x1f')
 		});
@@ -129,17 +140,55 @@ export function computeGraph(commits: readonly CommitNode[]): GraphRow[] {
 	return rows;
 }
 
-/** Classifies a `%D` decoration such as `HEAD -> main` or `tag: v1.0.0`. */
-export function refLabel(ref: string): RefLabel {
-	const value = ref.trim();
-	if (value.startsWith('HEAD -> ')) {
-		return { kind: 'head', name: value.slice('HEAD -> '.length) };
+/** Number of lanes the graph needs for a page, used to size the graph column. */
+export function graphWidth(rows: readonly GraphRow[]): number {
+	let lanes = 1;
+	for (const row of rows) {
+		lanes = Math.max(lanes, row.lane + 1, row.before.length, row.after.length);
+	}
+	return lanes;
+}
+
+/** True when the commit has more than one parent. */
+export function isMerge(commit: CommitNode): boolean {
+	return commit.parents.length > 1;
+}
+
+/** Strips a fully qualified ref prefix so `%D` decorations can be classified. */
+function shortRef(value: string): string {
+	return value
+		.replace(/^refs\/heads\//, '')
+		.replace(/^refs\/remotes\//, '')
+		.replace(/^refs\/tags\//, '')
+		.trim();
+}
+
+/**
+ * Classifies a `%D` decoration such as `HEAD -> main`, `origin/main`,
+ * `tag: v1.0.0` or `refs/remotes/origin/main`.
+ *
+ * `remotes` is the list of configured remote names; when supplied, a ref that
+ * starts with `<remote>/` is reported as a remote branch even when its name
+ * does not look like one.
+ */
+export function refLabel(ref: string, remotes: readonly string[] = []): RefLabel {
+	const value = shortRef(ref);
+	const arrow = value.indexOf(' -> ');
+	if (arrow !== -1) {
+		const left = value.slice(0, arrow).trim();
+		const right = shortRef(value.slice(arrow + 4));
+		return { kind: left === 'HEAD' ? 'head' : 'remote', name: right || left };
 	}
 	if (value === 'HEAD') {
 		return { kind: 'head', name: 'HEAD' };
 	}
 	if (value.startsWith('tag: ')) {
 		return { kind: 'tag', name: value.slice('tag: '.length) };
+	}
+	for (const remote of remotes) {
+		if (value.startsWith(`${remote}/`)) {
+			return { kind: 'remote', name: value };
+		}
 	}
 	if (/^(origin|upstream)\//.test(value)) {
 		return { kind: 'remote', name: value };

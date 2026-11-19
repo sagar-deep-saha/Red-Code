@@ -5,7 +5,7 @@
 
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CommitNode, computeGraph, parseCommitLog, refLabel } from '../graph.js';
+import { CommitNode, computeGraph, graphWidth, isMerge, parseCommitLog, refLabel } from '../graph.js';
 
 function commit(sha: string, parents: string[], subject = `commit ${sha}`): CommitNode {
 	return {
@@ -15,6 +15,9 @@ function commit(sha: string, parents: string[], subject = `commit ${sha}`): Comm
 		author: 'Sagar',
 		email: 'sagar@example.test',
 		date: '2026-11-14T10:00:00+05:30',
+		committer: 'Sagar',
+		committerEmail: 'sagar@example.test',
+		committerDate: '2026-11-14T10:00:00+05:30',
 		refs: [],
 		subject
 	};
@@ -26,7 +29,7 @@ const C = 'c'.repeat(40);
 const D = 'd'.repeat(40);
 
 test('parseCommitLog reads every field and keeps refs', () => {
-	const raw = `${A}\x1fa\x1f${B} ${C}\x1fSagar\x1fsagar@example.test\x1f2026-11-14T10:00:00+05:30\x1fHEAD -> main, origin/main\x1fSubject\x1e`;
+	const raw = `${A}\x1fa\x1f${B} ${C}\x1fSagar\x1fsagar@example.test\x1f2026-11-14T10:00:00+05:30\x1fCommitter\x1fcommitter@example.test\x1f2026-11-14T11:00:00+05:30\x1fHEAD -> main, origin/main\x1fSubject\x1e`;
 	const commits = parseCommitLog(raw);
 
 	assert.equal(commits.length, 1);
@@ -37,13 +40,16 @@ test('parseCommitLog reads every field and keeps refs', () => {
 		author: 'Sagar',
 		email: 'sagar@example.test',
 		date: '2026-11-14T10:00:00+05:30',
+		committer: 'Committer',
+		committerEmail: 'committer@example.test',
+		committerDate: '2026-11-14T11:00:00+05:30',
 		refs: ['HEAD -> main', 'origin/main'],
 		subject: 'Subject'
 	});
 });
 
 test('parseCommitLog skips malformed records and accepts an empty ref list', () => {
-	const raw = `not-a-sha\x1fx\x1f\x1fx\x1fx\x1fx\x1f\x1fx\x1e${A}\x1fa\x1f\x1fSagar\x1fs\x1f2026-11-14\x1f\x1fOnly subject\x1e`;
+	const raw = `not-a-sha\x1fx\x1f\x1fx\x1fx\x1fx\x1f\x1fx\x1e${A}\x1fa\x1f\x1fSagar\x1fs\x1f2026-11-14\x1fSagar\x1fs\x1f2026-11-14\x1f\x1fOnly subject\x1e`;
 	const commits = parseCommitLog(raw);
 
 	assert.equal(commits.length, 1);
@@ -99,10 +105,24 @@ test('a root commit clears its lane and lanes do not grow without need', () => {
 	assert.deepEqual(rows[0].after, []);
 });
 
+test('graphWidth and isMerge describe the page for the webview', () => {
+	const rows = computeGraph([commit(D, [A, B]), commit(A, [C]), commit(B, [C]), commit(C, [])]);
+	assert.equal(graphWidth(rows), 2);
+	assert.equal(isMerge(rows[0].commit), true);
+	assert.equal(isMerge(rows[1].commit), false);
+});
+
 test('refLabel classifies heads, tags, remotes and local branches', () => {
 	assert.deepEqual(refLabel('HEAD -> main'), { kind: 'head', name: 'main' });
 	assert.deepEqual(refLabel('HEAD'), { kind: 'head', name: 'HEAD' });
 	assert.deepEqual(refLabel('tag: v1.147.4'), { kind: 'tag', name: 'v1.147.4' });
 	assert.deepEqual(refLabel('origin/AnCo'), { kind: 'remote', name: 'origin/AnCo' });
 	assert.deepEqual(refLabel('feature/api-tester'), { kind: 'branch', name: 'feature/api-tester' });
+});
+
+test('refLabel understands a custom remote and a remote HEAD pointer', () => {
+	assert.deepEqual(refLabel('fork/main', ['fork']), { kind: 'remote', name: 'fork/main' });
+	assert.deepEqual(refLabel('origin/HEAD -> origin/main'), { kind: 'remote', name: 'origin/main' });
+	assert.deepEqual(refLabel('refs/remotes/fork/feature/x', ['fork']), { kind: 'remote', name: 'fork/feature/x' });
+	assert.deepEqual(refLabel('refs/heads/main'), { kind: 'branch', name: 'main' });
 });
