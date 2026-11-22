@@ -5,6 +5,23 @@ patch for each Red Code build. `1.147.0` was built and installed locally but nev
 has no download; `1.147.1` is the first published Red Code build.
 `releases/versions.json` is the machine-readable record; this file is the human one.
 
+## [1.147.12] — 2026-11-22
+
+### Fixed
+
+- **The integrated terminal failed to launch on Windows.** Opening a terminal showed
+  `The terminal process failed to launch: A native exception occurred during launch (Cannot find
+  conpty.dll at ...\node-pty\prebuilds\win32-x64\conpty\conpty.dll, error code: 3)`. The node-pty
+  prebuilds were packed inside `node_modules.asar`, but `conpty.node` loads its bundled
+  `conpty.dll` and `OpenConsole.exe` from a real `conpty` folder next to itself, so the lookup
+  failed.
+- The packaging now unpacks `node-pty/prebuilds/*/conpty/*` alongside the native module, so the
+  terminal host starts on both x64 and arm64.
+
+Nothing else changed: this release keeps the 1.147.11 classic square VS Code layout, the 1.147.10
+GitHub avatar support, the 1.147.9 GitLens-parity graph, the 1.147.8 API-panel fix and the 1.147.7
+native-module fix.
+
 ## [1.147.11] — 2026-11-19
 
 ### Workbench

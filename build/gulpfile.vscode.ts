@@ -275,6 +275,11 @@ function packageTask(platform: string, arch: string, sourceFolderName: string, d
 				'**/@devcontainers/cli/**',
 				'**/node-pty/build/Release/*',
 				'**/node-pty/build/Release/conpty/*',
+				// node-pty 1.2 loads the bundled ConPTY DLL and OpenConsole.exe from
+				// `prebuilds/<platform>-<arch>/conpty/` relative to conpty.node. They must
+				// sit outside the ASAR next to the unpacked native module, or every
+				// terminal launch fails with "Cannot find conpty.dll at ... error code: 3".
+				'**/node-pty/prebuilds/*/conpty/*',
 				'**/node-pty/lib/worker/conoutSocketWorker.js',
 				'**/node-pty/lib/shared/conout.js',
 				// node-pty spawns `conoutSocketWorker.js` as a Worker from the unpacked

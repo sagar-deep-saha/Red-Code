@@ -1,8 +1,34 @@
 {
 	"schemaVersion": 1,
 	"repository": "sagar-deep-saha/Red-Code",
-	"updatedAt": "2026-11-19T03:27:40.735Z",
+	"updatedAt": "2026-11-22T17:18:01.328Z",
 	"releases": [
+		{
+			"version": "1.147.12",
+			"date": "2026-11-22T17:18:01.319Z",
+			"prerelease": false,
+			"notes": "### Fixed\n\n- **The integrated terminal failed to launch on Windows.** Opening a terminal showed\n  `The terminal process failed to launch: A native exception occurred during launch (Cannot find\n  conpty.dll at ...\\node-pty\\prebuilds\\win32-x64\\conpty\\conpty.dll, error code: 3)`. The node-pty\n  prebuilds were packed inside `node_modules.asar`, but `conpty.node` loads its bundled\n  `conpty.dll` and `OpenConsole.exe` from a real `conpty` folder next to itself, so the lookup\n  failed.\n- The packaging now unpacks `node-pty/prebuilds/*/conpty/*` alongside the native module, so the\n  terminal host starts on both x64 and arm64.\n\nNothing else changed: this release keeps the 1.147.11 classic square VS Code layout, the 1.147.10\nGitHub avatar support, the 1.147.9 GitLens-parity graph, the 1.147.8 API-panel fix and the 1.147.7\nnative-module fix.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.12",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.12/RedCode-Setup.exe",
+				"sha256": "1505d86282c49975e26b6606da08ec0a8b763ec1e4e8263e231a97b8680dfda7",
+				"size": 322595328
+			},
+			"installers": [
+				{
+					"arch": "x64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.12/RedCode-Setup.exe",
+					"sha256": "1505d86282c49975e26b6606da08ec0a8b763ec1e4e8263e231a97b8680dfda7",
+					"size": 322595328
+				},
+				{
+					"arch": "arm64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.12/RedCode-Setup-arm64.exe",
+					"sha256": "32a842d3365909cc8ef18a0fe09d6f825c1c728c0570dfbb339fb4885f5b5f15",
+					"size": 317486011
+				}
+			]
+		},
 		{
 			"version": "1.147.11",
 			"date": "2026-11-19T03:27:40.732Z",
