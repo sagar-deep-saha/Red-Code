@@ -17,7 +17,7 @@
  *   node build/red-code/install-extensions.mjs --target "C:\path\to\Red Code\resources\app"
  */
 
-import { cp, mkdir, readFile, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
@@ -93,6 +93,18 @@ async function copyExtension(source, destination, name) {
 		if (directory === 'out') {
 			// Test output is not part of the extension.
 			await rm(path.join(to, 'test'), { recursive: true, force: true });
+		}
+	}
+
+	// The build rewrites `main` from `out/` to the bundled `dist/` entry point.
+	// Copying the source package.json verbatim would point at a folder this
+	// script does not ship, and the extension would silently never activate.
+	if (await isDirectory(path.join(source, 'dist'))) {
+		const packagePath = path.join(extensionRootPath, 'package.json');
+		const text = await readFile(packagePath, 'utf8');
+		const rewritten = text.replace(/("main"\s*:\s*"\.\/)out\//, '$1dist/');
+		if (rewritten !== text) {
+			await writeFile(packagePath, rewritten, 'utf8');
 		}
 	}
 }

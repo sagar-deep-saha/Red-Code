@@ -19,143 +19,204 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${scriptNonce}'; img-src ${webview.cspSource} https://www.gravatar.com https://*.gravatar.com https://avatars.githubusercontent.com https://*.githubusercontent.com data:;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-	:root { color-scheme: light dark; --w-graph: 86px; --cols: 86px minmax(220px, 1fr) 160px 140px 104px 104px; }
+	:root {
+		color-scheme: light dark;
+		--row-h: 24px;
+		--lane: 10px;
+		--w-graph: 32px;
+		--w-refs: 176px;
+		--w-author: 136px;
+		--w-committer: 120px;
+		--w-changes: 56px;
+		--w-date: 84px;
+		--w-sha: 76px;
+		--cols: 32px 176px minmax(120px, 1fr) 136px 56px 84px 76px 120px;
+		--fg: var(--vscode-foreground);
+		--muted: var(--vscode-descriptionForeground);
+		--line: var(--vscode-panel-border, rgba(128, 128, 128, .28));
+		--hover: var(--vscode-list-hoverBackground, rgba(128, 128, 128, .12));
+		--sel: var(--vscode-list-inactiveSelectionBackground, var(--vscode-list-activeSelectionBackground));
+		--accent: #ff2d20;
+		--green: var(--vscode-gitDecoration-addedResourceForeground, var(--vscode-charts-green, #3fb950));
+		--red: var(--vscode-gitDecoration-deletedResourceForeground, var(--vscode-charts-red, #f85149));
+		--track: color-mix(in srgb, var(--fg) 14%, transparent);
+	}
 	* { box-sizing: border-box; }
 	html, body { height: 100%; }
-	body { margin: 0; display: flex; flex-direction: column; overflow: hidden; font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--vscode-foreground); background: var(--vscode-editor-background); }
+	body { margin: 0; display: flex; flex-direction: column; overflow: hidden; font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--fg); background: var(--vscode-editor-background); }
 	button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 	svg { display: block; }
 
-	header { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--vscode-panel-border); }
-	.repo-icon { display: grid; width: 26px; height: 26px; flex: none; place-items: center; border-radius: 6px; color: var(--vscode-charts-blue, #61afef); background: var(--vscode-toolbar-hoverBackground); }
-	.repo-context { display: flex; min-width: 0; align-items: center; gap: 8px; }
-	.repo-context h1 { margin: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32vw; }
-	.chip { display: inline-flex; max-width: 240px; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--vscode-panel-border); border-radius: 11px; color: var(--vscode-foreground); background: var(--vscode-button-secondaryBackground); font-size: 11px; white-space: nowrap; }
-	.chip:hover { background: var(--vscode-button-secondaryHoverBackground); }
+	header { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--vscode-sideBar-background, var(--vscode-editor-background)); }
+	.repo-icon { display: grid; width: 18px; height: 18px; flex: none; place-items: center; color: var(--muted); }
+	.repo-context { display: flex; min-width: 0; align-items: center; gap: 6px; }
+	.repo-context h1 { margin: 0; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
+	.chip { display: inline-flex; height: 20px; max-width: 220px; align-items: center; gap: 4px; padding: 0 6px; border: 1px solid var(--line); border-radius: 3px; color: var(--fg); background: transparent; font-size: 11px; white-space: nowrap; }
+	.chip:hover { background: var(--hover); }
+	.chip svg { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; }
 	.chip .name { overflow: hidden; text-overflow: ellipsis; }
-	.chip .caret { color: var(--vscode-descriptionForeground); font-size: 9px; }
-	.dirty { padding: 1px 7px; border-radius: 9px; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); font-size: 10px; }
+	.chip .caret { color: var(--muted); font-size: 8px; }
+	.dirty { padding: 0 5px; border-radius: 3px; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); font-size: 10px; line-height: 16px; }
 	.spacer { flex: 1; }
-	.search-wrap { display: flex; width: min(38vw, 420px); min-width: 190px; align-items: center; gap: 6px; padding: 0 6px 0 8px; border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius: 4px; background: var(--vscode-input-background); }
+	.search-wrap { display: flex; width: min(34vw, 340px); min-width: 140px; height: 24px; align-items: center; gap: 4px; padding: 0 4px 0 6px; border: 1px solid var(--vscode-input-border, var(--line)); border-radius: 3px; background: var(--vscode-input-background); }
 	.search-wrap:focus-within { border-color: var(--vscode-focusBorder); }
-	.search-wrap > svg { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--vscode-descriptionForeground); stroke-width: 1.7; }
-	.search-wrap input { width: 100%; min-width: 0; padding: 4px 0; border: 0; outline: 0; color: var(--vscode-input-foreground); background: transparent; font: inherit; }
+	.search-wrap > svg { width: 13px; height: 13px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.7; }
+	.search-wrap input { width: 100%; min-width: 0; padding: 2px 0; border: 0; outline: 0; color: var(--vscode-input-foreground); background: transparent; font: inherit; font-size: 12px; }
 	.search-wrap input::placeholder { color: var(--vscode-input-placeholderForeground); }
-	.search-wrap .count { flex: none; color: var(--vscode-descriptionForeground); font-size: 10px; white-space: nowrap; }
-	.icon-btn { display: grid; width: 24px; height: 22px; flex: none; place-items: center; border-radius: 3px; color: var(--vscode-foreground); }
-	.icon-btn:hover { background: var(--vscode-toolbar-hoverBackground); }
-	.icon-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
-	.toolbar { display: flex; flex: none; align-items: center; gap: 4px; }
-	.tb { display: inline-flex; height: 26px; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid transparent; border-radius: 4px; color: var(--vscode-foreground); background: transparent; font-size: 12px; white-space: nowrap; }
-	.tb:hover { background: var(--vscode-toolbar-hoverBackground); }
-	.tb svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+	.search-wrap .count { flex: none; color: var(--muted); font-size: 10px; white-space: nowrap; }
+	.icon-btn { display: grid; width: 20px; height: 20px; flex: none; place-items: center; border-radius: 3px; color: var(--muted); }
+	.icon-btn:hover { background: var(--hover); color: var(--fg); }
+	.icon-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+	.toolbar { display: flex; flex: none; align-items: center; gap: 2px; }
+	.tb { display: inline-flex; height: 24px; align-items: center; gap: 5px; padding: 0 6px; border: 1px solid transparent; border-radius: 3px; color: var(--muted); background: transparent; font-size: 11px; white-space: nowrap; }
+	.tb:hover { background: var(--hover); color: var(--fg); }
+	.tb svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 	.tb.active { border-color: var(--vscode-focusBorder); }
-	.badge-count { padding: 0 5px; border-radius: 8px; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); font-size: 10px; }
+	.badge-count { padding: 0 4px; border-radius: 3px; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); font-size: 10px; }
 
-	#main { flex: 1; display: flex; min-height: 0; }
+	#main { position: relative; flex: 1; display: flex; min-height: 0; }
 	#graphPane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-	#working { display: grid; flex: none; grid-template-columns: var(--cols); height: 34px; align-items: center; gap: 0; padding: 0 8px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); cursor: pointer; }
-	#working:hover { background: var(--vscode-list-hoverBackground); }
-	#working .msg { display: flex; min-width: 0; align-items: center; gap: 8px; font-weight: 600; }
-	#working .msg .hint { font-weight: 400; font-size: 11px; }
-	#minimap { display: flex; flex: none; height: 42px; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--vscode-panel-border); }
-	#minimap svg { width: 100%; height: 34px; }
+	#working { display: grid; flex: none; grid-template-columns: var(--cols); height: var(--row-h); align-items: center; gap: 0; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--vscode-sideBar-background, var(--vscode-editor-background)); cursor: pointer; font-size: 12px; }
+	#working:hover { background: var(--hover); }
+	#working .msg { display: flex; min-width: 0; align-items: center; gap: 6px; font-weight: 600; }
+	#working .cell.message { flex-direction: row; align-items: center; gap: 6px; }
+	#working .msg .subject { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+	#working .msg .hint { font-weight: 400; color: var(--muted); font-size: 10px; }
+	#minimap { display: flex; flex: none; height: 38px; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+	#minimap svg { width: 100%; height: 30px; }
 	#minimap.hidden { display: none; }
-	#columns { display: grid; flex: none; grid-template-columns: var(--cols); height: 26px; align-items: center; padding: 0 8px; border-bottom: 1px solid var(--vscode-panel-border); color: var(--vscode-descriptionForeground); font-size: 10px; font-weight: 600; letter-spacing: .04em; user-select: none; }
-	#columns .col { position: relative; display: flex; height: 100%; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+	#columns { display: grid; flex: none; grid-template-columns: var(--cols); height: 24px; align-items: center; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--vscode-editor-background); color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; user-select: none; }
+	#columns .col { position: relative; display: flex; height: 100%; align-items: center; overflow: hidden; padding-right: 8px; white-space: nowrap; text-overflow: ellipsis; }
 	#columns .col .grip { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; }
 	#columns .col .grip:hover { background: var(--vscode-focusBorder); }
+	#columns .col > svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 	#list { position: relative; flex: 1; overflow: auto; }
 	#spacer { position: relative; }
-	.row { position: absolute; left: 0; right: 0; display: grid; grid-template-columns: var(--cols); height: 34px; align-items: center; gap: 0; padding: 0 8px; border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, transparent); cursor: pointer; }
-	.row:hover { background: var(--vscode-list-hoverBackground); }
-	.row.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+	.row { position: absolute; left: 0; right: 0; display: grid; grid-template-columns: var(--cols); height: var(--row-h); align-items: center; gap: 0; padding: 0 8px; cursor: pointer; }
+	.row:hover { background: var(--hover); }
+	.row.selected { background: var(--sel); }
 	.row.dim { opacity: .55; }
-	.row.selected .meta, .row.selected .hint { color: inherit; opacity: .85; }
 	.cell { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; }
-	.cell.graph { overflow: hidden; }
-	.refs { display: inline-flex; min-width: 0; gap: 4px; overflow: hidden; }
-	.ref { display: inline-flex; max-width: 132px; align-items: center; gap: 3px; padding: 0 6px; border: 1px solid; border-radius: 3px; font-size: 10px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.ref .glyph { font-size: 9px; opacity: .9; }
-	.ref.branch { color: var(--vscode-charts-blue, #61afef); border-color: var(--vscode-charts-blue, #61afef); background: var(--vscode-charts-blue, #61afef); background: color-mix(in srgb, var(--vscode-charts-blue, #61afef) 12%, transparent); }
-	.ref.remote { color: var(--vscode-charts-purple, #c678dd); border-color: var(--vscode-charts-purple, #c678dd); background: color-mix(in srgb, var(--vscode-charts-purple, #c678dd) 12%, transparent); }
-	.ref.tag { color: var(--vscode-charts-yellow, #e5c07b); border-color: var(--vscode-charts-yellow, #e5c07b); background: color-mix(in srgb, var(--vscode-charts-yellow, #e5c07b) 12%, transparent); }
-	.ref.head { color: var(--vscode-charts-green, #98c379); border-color: var(--vscode-charts-green, #98c379); background: color-mix(in srgb, var(--vscode-charts-green, #98c379) 12%, transparent); }
-	.ref.working { color: var(--vscode-descriptionForeground); border-color: var(--vscode-panel-border); border-style: dashed; background: transparent; }
-	.message { display: flex; min-width: 0; flex-direction: column; gap: 1px; }
-	.message .subject { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-	.message .subject .merge { color: var(--vscode-charts-purple, #c678dd); font-size: 10px; margin-right: 4px; }
-	.avatar { position: relative; display: grid; width: 20px; height: 20px; flex: 0 0 20px; place-items: center; overflow: hidden; border-radius: 50%; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); font-size: 8px; font-weight: 600; }
+	.cell.graph { overflow: visible; }
+	.refs { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; }
+	.ref { display: inline-flex; height: 18px; max-width: 100%; min-width: 0; align-items: center; gap: 4px; padding: 0 6px; border-radius: 3px; color: var(--muted); background: color-mix(in srgb, var(--fg) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 16%, transparent); font-size: 10px; line-height: 1; white-space: nowrap; overflow: hidden; }
+	.ref:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 34%, transparent); }
+	.ref svg { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; }
+	.ref .label { overflow: hidden; text-overflow: ellipsis; }
+	.ref.branch svg { color: var(--vscode-charts-blue, #3794ff); }
+	.ref.remote svg { color: var(--vscode-charts-purple, #b180d7); }
+	.ref.tag svg { color: var(--vscode-charts-yellow, #cca700); }
+	.ref.head { color: #fff; background: var(--accent); box-shadow: inset 0 0 0 1px #0000; }
+	.ref.head:hover { background: #ff4636; color: #fff; }
+	.ref.head svg { color: #fff; }
+	.ref.working { color: var(--muted); border: 0; background: transparent; box-shadow: inset 0 0 0 1px var(--line); font-style: italic; }
+	.ref.more { color: var(--muted); background: transparent; box-shadow: none; padding: 0 3px; }
+	.message { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
+	.message .subject { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; line-height: 1.35; color: var(--fg); }
+	.message .subject .merge { color: var(--muted); font-size: 10px; margin-right: 4px; }
+	.row.selected .message .subject { color: inherit; }
+	.avatar { position: relative; display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; overflow: hidden; border-radius: 50%; color: var(--fg); background: color-mix(in srgb, var(--fg) 16%, transparent); font-size: 7px; font-weight: 600; }
 	.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-	.name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-	.meta { color: var(--vscode-descriptionForeground); font-size: 11px; }
-	.sha { font-family: var(--vscode-editor-font-family); font-size: 11px; color: var(--vscode-descriptionForeground); }
-	.changes { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--vscode-editor-font-family); }
-	.changes .add { color: var(--vscode-charts-green, #98c379); }
-	.changes .del { color: var(--vscode-charts-red, #e06c75); }
-	.changes .none { color: var(--vscode-descriptionForeground); }
-	.statbar { display: flex; width: 100%; max-width: 92px; height: 6px; gap: 2px; overflow: hidden; border-radius: 2px; }
-	.statbar .a { background: var(--vscode-charts-green, #98c379); }
-	.statbar .d { background: var(--vscode-charts-red, #e06c75); }
+	.name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
+	.meta { color: var(--muted); font-size: 11px; }
+	.sha { font-family: var(--vscode-editor-font-family); font-size: 11px; color: var(--muted); }
+	.changes { display: flex; width: 100%; align-items: center; gap: 4px; font-size: 10px; font-family: var(--vscode-editor-font-family); font-variant-numeric: tabular-nums; }
+	.changes .add { color: var(--green); }
+	.changes .del { color: var(--red); }
+	.changes .none { color: var(--muted); }
+	.statbar { display: flex; width: 100%; height: 9px; gap: 1px; overflow: hidden; border-radius: 3px; background: var(--track); }
+	.statbar .a { background: var(--green); }
+	.statbar .d { background: var(--red); }
 	.squares { display: flex; gap: 2px; }
-	.squares i { width: 7px; height: 7px; border-radius: 1px; background: var(--vscode-panel-border); }
-	.squares i.a { background: var(--vscode-charts-green, #98c379); }
-	.squares i.d { background: var(--vscode-charts-red, #e06c75); }
-	.row-actions { position: absolute; right: 8px; top: 0; bottom: 0; display: none; align-items: center; gap: 2px; padding-left: 18px; background: linear-gradient(to right, transparent, var(--vscode-list-hoverBackground) 18px); }
+	.squares i { width: 6px; height: 6px; border-radius: 1px; background: var(--track); }
+	.squares i.a { background: var(--green); }
+	.squares i.d { background: var(--red); }
+	.row-actions { position: absolute; right: 8px; top: 0; bottom: 0; display: none; align-items: center; gap: 1px; padding-left: 20px; background: linear-gradient(to right, transparent, var(--hover) 20px); }
 	.row:hover .row-actions { display: flex; }
-	.row.selected .row-actions { background: linear-gradient(to right, transparent, var(--vscode-list-activeSelectionBackground) 18px); }
-	.row-actions button { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 3px; }
-	.row-actions button:hover { background: var(--vscode-toolbar-hoverBackground); }
-	.row-actions svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
-	#footer { display: flex; flex: none; justify-content: center; padding: 7px 12px; border-top: 1px solid var(--vscode-panel-border); }
-	#footer button { padding: 4px 14px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 3px; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); font-size: 12px; }
+	.row.selected .row-actions { background: linear-gradient(to right, transparent, var(--sel) 20px); }
+	.row-actions button { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 3px; color: var(--muted); }
+	.row-actions button:hover { background: var(--vscode-toolbar-hoverBackground); color: var(--fg); }
+	.row-actions svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+	#footer { display: flex; flex: none; justify-content: center; padding: 6px 12px; border-top: 1px solid var(--line); }
+	#footer button { height: 24px; padding: 0 12px; border: 1px solid var(--line); border-radius: 3px; color: var(--fg); background: var(--vscode-button-secondaryBackground); font-size: 11px; }
 	#footer button:hover { background: var(--vscode-button-secondaryHoverBackground); }
 	#footer.hidden { display: none; }
 
+	/* GitLens-style list layout: two-line commits when the host view is narrow. */
+	body.list #columns { display: none; }
+	body.list .row { display: flex; align-items: center; padding: 0 8px; }
+	body.list .row .cell.graph { flex: 0 0 auto; }
+	.list-content { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; }
+	.list-line1 { display: flex; min-width: 0; align-items: center; gap: 6px; }
+	.list-line1 .subject { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; line-height: 16px; color: var(--fg); }
+	.list-line2 { display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; line-height: 14px; }
+	.list-line2 .refs { flex: 0 1 auto; }
+	.list-line2 .sha { flex: none; font-size: 10px; }
+	.list-line2 .author { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.list-line2 .date { flex: none; margin-left: auto; font-size: 10px; }
+	.list-line2 .changes { width: auto; flex: none; }
+	body.list #working { display: flex; padding: 0 8px; }
+	body.list #working .cell.graph { flex: 0 0 auto; }
+	body.list .row-actions { background: linear-gradient(to right, transparent, var(--hover) 20px); }
+
 	#splitter { width: 4px; flex: none; cursor: col-resize; background: transparent; }
 	#splitter:hover { background: var(--vscode-focusBorder); }
-	#details { width: 360px; min-width: 240px; flex: none; overflow: auto; padding: 10px 12px 16px; border-left: 1px solid var(--vscode-panel-border); }
-	#details .empty { color: var(--vscode-descriptionForeground); font-size: 12px; padding-top: 6px; }
-	#details h2 { margin: 2px 0 6px; font-size: 14px; font-weight: 600; word-break: break-word; }
+	#details { width: 360px; min-width: 260px; flex: none; overflow: auto; padding: 10px 12px 16px; border-left: 1px solid var(--line); background: var(--vscode-sideBar-background, var(--vscode-editor-background)); }
+	#details .empty { color: var(--muted); font-size: 12px; padding-top: 6px; }
+	#details h2 { margin: 2px 0 6px; font-size: 13px; font-weight: 600; word-break: break-word; }
 	#details .sha-line { display: flex; align-items: center; gap: 6px; }
-	#details .sha-line code { font-family: var(--vscode-editor-font-family); font-size: 11px; color: var(--vscode-descriptionForeground); user-select: text; overflow: hidden; text-overflow: ellipsis; }
-	#details .actions { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 12px; }
-	#details .actions button { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border: 1px solid var(--vscode-button-border, var(--vscode-panel-border)); border-radius: 3px; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); font-size: 11px; }
-	#details .actions button:hover { background: var(--vscode-button-secondaryHoverBackground); }
-	#details .actions svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+	#details .sha-line code { font-family: var(--vscode-editor-font-family); font-size: 11px; color: var(--muted); user-select: text; overflow: hidden; text-overflow: ellipsis; }
+	#details .actions { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 12px; }
+	#details .actions button { display: inline-flex; height: 22px; align-items: center; gap: 4px; padding: 0 7px; border: 1px solid var(--line); border-radius: 3px; color: var(--fg); background: transparent; font-size: 11px; }
+	#details .actions button:hover { background: var(--hover); }
+	#details .actions svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 	#details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; margin: 0 0 12px; font-size: 11px; }
-	#details dt { color: var(--vscode-descriptionForeground); }
+	#details dt { color: var(--muted); }
 	#details dd { display: flex; min-width: 0; align-items: center; gap: 6px; margin: 0; overflow: hidden; word-break: break-word; }
 	#details dd .avatar { width: 16px; height: 16px; flex-basis: 16px; font-size: 7px; }
-	#details pre.message { margin: 0 0 12px; padding: 8px; border: 1px solid var(--vscode-panel-border); border-radius: 3px; background: var(--vscode-textCodeBlock-background); font-family: var(--vscode-editor-font-family); font-size: 11px; white-space: pre-wrap; }
-	#details .files-head { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--vscode-panel-border); font-size: 11px; color: var(--vscode-descriptionForeground); }
+	#details pre.message { margin: 0 0 12px; padding: 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--vscode-textCodeBlock-background); font-family: var(--vscode-editor-font-family); font-size: 11px; white-space: pre-wrap; }
+	#details .files-head { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--muted); }
 	#details .file { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 3px; font-family: var(--vscode-editor-font-family); font-size: 11px; cursor: pointer; }
-	#details .file:hover { background: var(--vscode-list-hoverBackground); }
+	#details .file:hover { background: var(--hover); }
 	#details .file .status { width: 14px; flex: none; text-align: center; font-weight: 700; }
 	#details .file .path { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; direction: rtl; text-align: left; }
-	#details .file .add { color: var(--vscode-charts-green, #98c379); }
-	#details .file .del { color: var(--vscode-charts-red, #e06c75); }
+	#details .file .add { color: var(--green); }
+	#details .file .del { color: var(--red); }
 	#details .file .open { opacity: 0; }
 	#details .file:hover .open { opacity: 1; }
 
-	#popover { position: fixed; z-index: 20; min-width: 208px; padding: 6px; border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); border-radius: 5px; background: var(--vscode-menu-background, var(--vscode-editorWidget-background)); color: var(--vscode-menu-foreground, var(--vscode-foreground)); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); font-size: 12px; }
+	#popover { position: fixed; z-index: 20; min-width: 208px; padding: 5px; border: 1px solid var(--vscode-widget-border, var(--line)); border-radius: 4px; background: var(--vscode-menu-background, var(--vscode-editorWidget-background)); color: var(--vscode-menu-foreground, var(--fg)); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); font-size: 12px; }
 	#popover.hidden { display: none; }
-	#popover .group { padding: 4px 8px 2px; color: var(--vscode-descriptionForeground); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+	#popover .group { padding: 4px 8px 2px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
 	#popover label.item, #popover button.item { display: flex; width: 100%; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 3px; text-align: left; font-size: 12px; }
-	#popover label.item:hover, #popover button.item:hover { background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground)); color: var(--vscode-menu-selectionForeground, inherit); }
+	#popover label.item:hover, #popover button.item:hover { background: var(--vscode-menu-selectionBackground, var(--hover)); color: var(--vscode-menu-selectionForeground, inherit); }
 	#popover label.item input { margin: 0; }
-	#popover .sep { height: 1px; margin: 4px 6px; background: var(--vscode-menu-separatorBackground, var(--vscode-panel-border)); }
+	#popover .sep { height: 1px; margin: 4px 6px; background: var(--vscode-menu-separatorBackground, var(--line)); }
 	#popover .row2 { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 8px; }
-	#popover select { padding: 2px 4px; border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border)); border-radius: 3px; color: var(--vscode-dropdown-foreground); background: var(--vscode-dropdown-background); font: inherit; font-size: 11px; }
-	#menu { position: fixed; z-index: 30; min-width: 220px; padding: 4px; border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border)); border-radius: 5px; background: var(--vscode-menu-background, var(--vscode-editorWidget-background)); color: var(--vscode-menu-foreground, var(--vscode-foreground)); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); font-size: 12px; }
+	#popover select { padding: 2px 4px; border: 1px solid var(--vscode-dropdown-border, var(--line)); border-radius: 3px; color: var(--vscode-dropdown-foreground); background: var(--vscode-dropdown-background); font: inherit; font-size: 11px; }
+	#menu { position: fixed; z-index: 30; min-width: 220px; padding: 4px; border: 1px solid var(--vscode-menu-border, var(--line)); border-radius: 4px; background: var(--vscode-menu-background, var(--vscode-editorWidget-background)); color: var(--vscode-menu-foreground, var(--fg)); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); font-size: 12px; }
 	#menu.hidden { display: none; }
 	#menu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 3px; text-align: left; }
-	#menu button:hover { background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground)); }
-	#menu .sep { height: 1px; margin: 4px 6px; background: var(--vscode-menu-separatorBackground, var(--vscode-panel-border)); }
+	#menu button:hover { background: var(--vscode-menu-selectionBackground, var(--hover)); }
+	#menu .sep { height: 1px; margin: 4px 6px; background: var(--vscode-menu-separatorBackground, var(--line)); }
 	#toast { position: fixed; right: 16px; bottom: 16px; z-index: 40; max-width: 60vw; padding: 8px 12px; border: 1px solid var(--vscode-notifications-border); border-radius: 3px; color: var(--vscode-notifications-foreground); background: var(--vscode-notifications-background); opacity: 0; transition: opacity .15s; pointer-events: none; }
 	#toast.visible { opacity: 1; }
 	.error { color: var(--vscode-errorForeground, #f85149); }
 	@media (max-width: 980px) { #details { width: 290px; } .repo-context h1 { max-width: 18vw; } }
+	/* The activity bar view is narrow: details become an overlay instead of stealing the list width. */
+	@media (max-width: 700px) {
+		header { gap: 4px; }
+		#details { position: absolute; top: 0; right: 0; bottom: 0; z-index: 6; width: min(340px, 100%); border-left: 1px solid var(--line); background: var(--vscode-sideBar-background); box-shadow: -8px 0 20px rgba(0, 0, 0, .35); }
+		#splitter { display: none !important; }
+		.repo-context h1 { max-width: none; }
+		.search-wrap { width: auto; flex: 1; min-width: 110px; }
+	}
+	@media (max-width: 560px) {
+		.repo-context h1, .repo-icon { display: none; }
+		#filterLabel, .search-wrap .count, #prevMatch, #nextMatch, #searchOptions { display: none; }
+		.chip { max-width: 120px; }
+		.search-wrap { min-width: 72px; padding: 0 6px; }
+	}
 </style>
 </head>
 <body>
@@ -203,24 +264,24 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 			<div class="cell graph" data-col="graph">
 				<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="var(--vscode-descriptionForeground)" stroke-width="1.6" stroke-dasharray="3 2"/></svg>
 			</div>
-			<div class="cell" data-col="refs"><span class="ref working"><span class="glyph">◆</span>Working Changes</span></div>
+			<div class="cell" data-col="refs"><span class="ref working">Working Changes</span></div>
 			<div class="cell message" data-col="message"><span class="subject">Working Changes</span><span class="hint" id="workingHint"></span></div>
 			<div class="cell" data-col="author"><span class="hint">You</span></div>
-			<div class="cell" data-col="committer"><span class="hint">Uncommitted</span></div>
+			<div class="cell changes" data-col="changes"><span class="none" id="workingCount"></span></div>
 			<div class="cell" data-col="date"><span class="hint">now</span></div>
 			<div class="cell" data-col="sha"><span class="hint">—</span></div>
-			<div class="cell changes" data-col="changes"><span class="none" id="workingCount"></span></div>
+			<div class="cell" data-col="committer"><span class="hint">Uncommitted</span></div>
 		</div>
-		<div id="minimap"><svg id="minimapSvg" viewBox="0 0 1000 34" preserveAspectRatio="none" role="img" aria-label="Commit history minimap"></svg></div>
+		<div id="minimap" class="hidden"><svg id="minimapSvg" viewBox="0 0 1000 34" preserveAspectRatio="none" role="img" aria-label="Commit history minimap"></svg></div>
 		<div id="columns">
-			<span class="col" data-col="graph"><span>GRAPH</span></span>
-			<span class="col" data-col="refs"><span>BRANCH / TAG</span><span class="grip" data-resize="refs"></span></span>
-			<span class="col" data-col="message"><span>COMMIT MESSAGE</span></span>
+			<span class="col" data-col="graph" title="Graph"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="4" cy="3" r="1.5"/><circle cx="4" cy="13" r="1.5"/><circle cx="12" cy="6" r="1.5"/><path d="M4 4.5v7M12 7.5v.3a2.7 2.7 0 0 1-2.7 2.7H7.4"/></svg></span>
+			<span class="col" data-col="refs"><span>BRANCHES / TAGS</span><span class="grip" data-resize="refs"></span></span>
+			<span class="col" data-col="message"><span>MESSAGE</span></span>
 			<span class="col" data-col="author"><span>AUTHOR</span><span class="grip" data-resize="author"></span></span>
-			<span class="col" data-col="committer"><span>COMMITTER</span><span class="grip" data-resize="committer"></span></span>
+			<span class="col" data-col="changes" title="Changes"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13V8M6.3 13V4M9.7 13V9M13 13V6"/></svg><span class="grip" data-resize="changes"></span></span>
 			<span class="col" data-col="date"><span>DATE</span><span class="grip" data-resize="date"></span></span>
 			<span class="col" data-col="sha"><span>SHA</span><span class="grip" data-resize="sha"></span></span>
-			<span class="col" data-col="changes"><span>CHANGES</span><span class="grip" data-resize="changes"></span></span>
+			<span class="col" data-col="committer"><span>COMMITTER</span><span class="grip" data-resize="committer"></span></span>
 		</div>
 		<div id="list" tabindex="0"><div id="spacer"></div></div>
 		<div id="footer" class="hidden"><button id="more">Load more</button></div>
@@ -235,11 +296,12 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 (function () {
 	const vscode = acquireVsCodeApi();
 	const SVG_NS = 'http://www.w3.org/2000/svg';
-	const PALETTE = ['#e06c75', '#61afef', '#98c379', '#e5c07b', '#c678dd', '#56b6c2', '#d19a66', '#7f848e'];
-	const ROW = 34;
-	const LANE = 14;
-	const COLUMNS = ['refs', 'author', 'committer', 'date', 'sha', 'changes'];
-	const DEFAULTS = { refs: true, author: true, committer: true, date: true, sha: false, changes: true, minimap: true, dimMerges: true, details: true, changeMode: 'bar', widths: { refs: 150, author: 160, committer: 140, date: 104, sha: 84, changes: 104 } };
+	const PALETTE = ['#4e9cf5', '#e5534b', '#57ab5a', '#c69026', '#986ee2', '#39c5cf', '#e0823d', '#768390'];
+	const ROW_TABLE = 24;
+	const ROW_LIST = 44;
+	const LANE = 10;
+	const COLUMNS = ['refs', 'author', 'committer', 'changes', 'date', 'sha'];
+	const DEFAULTS = { refs: true, author: true, committer: false, date: true, sha: true, changes: true, minimap: false, dimMerges: false, details: true, changeMode: 'bar', widths: { refs: 176, author: 136, committer: 120, changes: 56, date: 84, sha: 76 } };
 
 	const ui = loadUi();
 	const el = {
@@ -271,6 +333,8 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 	let working = [];
 	let branches = { current: '', local: [], remote: [], tags: [] };
 	let graphLanes = 1;
+	let ROW = ROW_TABLE;
+	let listMode = window.innerWidth < 520;
 	let matchCount = 0;
 	let renderQueued = false;
 	let searchTimer = 0;
@@ -279,6 +343,10 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 	function loadUi() {
 		const saved = vscode.getState();
 		const ui = JSON.parse(JSON.stringify(DEFAULTS));
+		// A narrow activity bar view starts list-first; details stay one Alt+D away.
+		if (window.innerWidth <= 700) {
+			ui.details = false;
+		}
 		if (saved && saved.ui) {
 			for (const key of Object.keys(DEFAULTS)) {
 				if (saved.ui[key] !== undefined) {
@@ -301,39 +369,172 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 
 	function color(index) { return PALETTE[index % PALETTE.length]; }
 
+	function workingGraph() {
+		const svg = svgNode('svg', { width: 20, height: Math.max(18, ROW), viewBox: '0 0 20 ' + Math.max(18, ROW), 'aria-hidden': 'true' });
+		svg.appendChild(svgNode('circle', {
+			cx: 10, cy: Math.max(18, ROW) / 2, r: 4.5,
+			fill: 'none', stroke: 'var(--vscode-descriptionForeground)', 'stroke-width': '1.5', 'stroke-dasharray': '2.5 2'
+		}));
+		return svg;
+	}
+
+	function renderWorkingRow() {
+		const node = el.working;
+		node.replaceChildren();
+		const graph = document.createElement('div');
+		graph.className = 'cell graph';
+		graph.setAttribute('data-col', 'graph');
+		graph.appendChild(workingGraph());
+		node.appendChild(graph);
+
+		const countText = working.length ? working.length + ' file' + (working.length === 1 ? '' : 's') : 'clean';
+		const hintText = working.length ? working.length + ' uncommitted file' + (working.length === 1 ? '' : 's') : 'Working tree clean';
+
+		if (listMode) {
+			const content = document.createElement('div');
+			content.className = 'list-content';
+			const line1 = document.createElement('div');
+			line1.className = 'list-line1';
+			const subject = document.createElement('span');
+			subject.className = 'subject';
+			subject.textContent = 'Working Changes';
+			const count = document.createElement('span');
+			count.id = 'workingCount';
+			count.className = 'date';
+			count.style.marginLeft = 'auto';
+			count.style.fontSize = '10px';
+			count.textContent = countText;
+			line1.append(subject, count);
+			content.appendChild(line1);
+
+			const line2 = document.createElement('div');
+			line2.className = 'list-line2';
+			const pill = document.createElement('span');
+			pill.className = 'ref head';
+			pill.textContent = branches.current || 'HEAD';
+			const hint = document.createElement('span');
+			hint.id = 'workingHint';
+			hint.className = 'date';
+			hint.textContent = hintText;
+			line2.append(pill, hint);
+			content.appendChild(line2);
+			node.appendChild(content);
+		} else {
+			const refs = document.createElement('div');
+			refs.className = 'cell';
+			refs.setAttribute('data-col', 'refs');
+			const pill = document.createElement('span');
+			pill.className = 'ref head';
+			pill.textContent = branches.current || 'HEAD';
+			refs.appendChild(pill);
+			node.appendChild(refs);
+
+			const message = document.createElement('div');
+			message.className = 'cell message';
+			message.setAttribute('data-col', 'message');
+			const subject = document.createElement('span');
+			subject.className = 'subject';
+			subject.textContent = 'Working Changes';
+			const hint = document.createElement('span');
+			hint.id = 'workingHint';
+			hint.className = 'hint';
+			hint.textContent = hintText;
+			message.append(subject, hint);
+			node.appendChild(message);
+
+			const author = document.createElement('div');
+			author.className = 'cell';
+			author.setAttribute('data-col', 'author');
+			const you = document.createElement('span');
+			you.className = 'meta';
+			you.textContent = 'You';
+			author.appendChild(you);
+			node.appendChild(author);
+
+			const changes = document.createElement('div');
+			changes.className = 'cell';
+			changes.setAttribute('data-col', 'changes');
+			const count = document.createElement('span');
+			count.id = 'workingCount';
+			count.className = 'none';
+			count.textContent = countText;
+			changes.appendChild(count);
+			node.appendChild(changes);
+
+			const date = document.createElement('div');
+			date.className = 'cell';
+			date.setAttribute('data-col', 'date');
+			const now = document.createElement('span');
+			now.className = 'meta';
+			now.textContent = 'now';
+			date.appendChild(now);
+			node.appendChild(date);
+
+			const sha = document.createElement('div');
+			sha.className = 'cell';
+			sha.setAttribute('data-col', 'sha');
+			const dash = document.createElement('span');
+			dash.className = 'sha';
+			dash.textContent = '—';
+			sha.appendChild(dash);
+			node.appendChild(sha);
+
+			const committer = document.createElement('div');
+			committer.className = 'cell';
+			committer.setAttribute('data-col', 'committer');
+			const uncommitted = document.createElement('span');
+			uncommitted.className = 'meta';
+			uncommitted.textContent = 'Uncommitted';
+			committer.appendChild(uncommitted);
+			node.appendChild(committer);
+		}
+
+		el.workingHint = node.querySelector('#workingHint');
+		el.workingCount = node.querySelector('#workingCount');
+	}
+
 	function applyLayout() {
 		const root = document.documentElement.style;
-		const detailsWidth = ui.details ? (el.details.getBoundingClientRect().width || 360) : 0;
-		const available = Math.max(360, window.innerWidth - detailsWidth - (ui.details ? 4 : 0) - 24);
-		const messageMin = 180;
-		const graph = Math.max(64, graphLanes * LANE + 12);
-		let otherFixed = 0;
+		listMode = window.innerWidth < 520;
+		ROW = listMode ? ROW_LIST : ROW_TABLE;
+		document.body.classList.toggle('list', listMode);
+		root.setProperty('--row-h', ROW + 'px');
+		const compact = window.innerWidth <= 700;
+		const detailsWidth = ui.details && !compact ? (el.details.getBoundingClientRect().width || 360) : 0;
+		const available = Math.max(compact ? 240 : 360, window.innerWidth - detailsWidth - (ui.details && !compact ? 4 : 0) - 16);
+		const messageMin = listMode ? 90 : 160;
+		const graph = Math.max(26, 16 + graphLanes * LANE);
+		const shown = key => !!ui[key];
+		let fixed = 0;
 		for (const key of COLUMNS) {
-			if (ui[key]) { otherFixed += ui.widths[key]; }
+			if (shown(key)) { fixed += ui.widths[key]; }
 		}
-		const scale = otherFixed + graph + messageMin > available
-			? Math.max(0.5, (available - graph - messageMin) / Math.max(1, otherFixed))
+		const scale = fixed + graph + messageMin > available
+			? Math.max(0.45, (available - graph - messageMin) / Math.max(1, fixed))
 			: 1;
 
 		root.setProperty('--w-graph', graph + 'px');
 		for (const key of COLUMNS) {
-			root.setProperty('--w-' + key, Math.max(44, Math.round(ui.widths[key] * scale)) + 'px');
+			root.setProperty('--w-' + key, Math.max(40, Math.round(ui.widths[key] * scale)) + 'px');
 		}
 
 		const parts = ['var(--w-graph)'];
-		if (ui.refs) { parts.push('var(--w-refs)'); }
-		parts.push('minmax(' + messageMin + 'px, 1fr)');
-		if (ui.author) { parts.push('var(--w-author)'); }
-		if (ui.committer) { parts.push('var(--w-committer)'); }
-		if (ui.date) { parts.push('var(--w-date)'); }
-		if (ui.sha) { parts.push('var(--w-sha)'); }
-		if (ui.changes) { parts.push('var(--w-changes)'); }
+		if (!listMode) {
+			if (shown('refs')) { parts.push('var(--w-refs)'); }
+			parts.push('minmax(' + messageMin + 'px, 1fr)');
+			if (shown('author')) { parts.push('var(--w-author)'); }
+			if (shown('changes')) { parts.push('var(--w-changes)'); }
+			if (shown('date')) { parts.push('var(--w-date)'); }
+			if (shown('sha')) { parts.push('var(--w-sha)'); }
+			if (shown('committer')) { parts.push('var(--w-committer)'); }
+		}
 		root.setProperty('--cols', parts.join(' '));
 
+		renderWorkingRow();
 		document.querySelectorAll('[data-col]').forEach(node => {
 			const key = node.getAttribute('data-col');
 			if (key === 'graph' || key === 'message') { return; }
-			node.style.display = ui[key] ? '' : 'none';
+			node.style.display = listMode || shown(key) ? '' : 'none';
 		});
 		el.minimap.classList.toggle('hidden', !ui.minimap);
 		el.details.style.display = ui.details ? '' : 'none';
@@ -348,7 +549,7 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 		return node;
 	}
 
-	function laneX(lane) { return lane * LANE + 8; }
+	function laneX(lane) { return 8 + lane * LANE + LANE / 2; }
 
 	function curve(svg, x1, x2, y1, y2, stroke, opacity) {
 		const path = svgNode('path', {
@@ -365,7 +566,7 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 
 	function buildGraph(row) {
 		const lanes = Math.max(row.before.length, row.after.length, row.lane + 1, 1);
-		const width = lanes * LANE + 12;
+		const width = lanes * LANE + 16;
 		const svg = svgNode('svg', { width: width, height: ROW, viewBox: '0 0 ' + width + ' ' + ROW });
 		const midY = ROW / 2;
 
@@ -375,7 +576,7 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 			if (row.after[index] === sha) {
 				svg.appendChild(svgNode('line', {
 					x1: laneX(index), y1: 0, x2: laneX(index), y2: ROW,
-					stroke: color(index), 'stroke-width': '2'
+					stroke: color(index), 'stroke-width': '1.6'
 				}));
 			} else {
 				curve(svg, laneX(index), laneX(index), 0, midY, color(index));
@@ -387,7 +588,7 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 			if (index === row.lane) {
 				svg.appendChild(svgNode('line', {
 					x1: laneX(index), y1: 0, x2: laneX(index), y2: midY,
-					stroke: color(index), 'stroke-width': '2'
+					stroke: color(index), 'stroke-width': '1.6'
 				}));
 			} else {
 				curve(svg, laneX(index), laneX(row.lane), 0, midY, color(index));
@@ -400,14 +601,13 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 			curve(svg, laneX(row.lane), laneX(index), midY, ROW, color(index));
 		}
 
-		const halo = svgNode('circle', {
-			cx: laneX(row.lane), cy: midY, r: 5.5,
-			fill: 'var(--vscode-editor-background)'
-		});
-		svg.appendChild(halo);
 		svg.appendChild(svgNode('circle', {
-			cx: laneX(row.lane), cy: midY, r: 4,
-			fill: color(row.lane), stroke: 'var(--vscode-editor-background)', 'stroke-width': '1'
+			cx: laneX(row.lane), cy: midY, r: 6,
+			fill: 'var(--vscode-editor-background)'
+		}));
+		svg.appendChild(svgNode('circle', {
+			cx: laneX(row.lane), cy: midY, r: 4.5,
+			fill: color(row.lane), stroke: 'var(--vscode-editor-background)', 'stroke-width': '1.5'
 		}));
 		return svg;
 	}
@@ -480,14 +680,32 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 		return wrapper;
 	}
 
+	function refIcon(kind) {
+		const svg = svgNode('svg', { viewBox: '0 0 16 16', 'aria-hidden': 'true' });
+		const add = (name, attributes) => svg.appendChild(svgNode(name, attributes));
+		if (kind === 'remote') {
+			add('path', { d: 'M4.3 12.4h7.2a2.6 2.6 0 0 0 .3-5.2 3.6 3.6 0 0 0-6.9-.7 2.9 2.9 0 0 0-.6 5.9z' });
+		} else if (kind === 'tag') {
+			add('path', { d: 'M2.6 8.3V3.6c0-.6.4-1 1-1h4.7c.3 0 .5.1.7.3l4.2 4.2c.4.4.4 1 0 1.4l-4.1 4.1c-.4.4-1 .4-1.4 0L2.9 9a1 1 0 0 1-.3-.7z' });
+			add('circle', { cx: '5.4', cy: '5.4', r: '.9' });
+		} else {
+			add('circle', { cx: '4.5', cy: '2.8', r: '1.5' });
+			add('circle', { cx: '4.5', cy: '13.2', r: '1.5' });
+			add('circle', { cx: '11.5', cy: '5.5', r: '1.5' });
+			add('path', { d: 'M4.5 4.3v7.4M11.5 7v.4a3 3 0 0 1-3 3H7.2' });
+		}
+		return svg;
+	}
+
 	function refElement(ref, row) {
 		const badge = document.createElement('span');
 		badge.className = 'ref ' + ref.kind;
 		badge.title = ref.text + ' — click to filter the graph';
-		const glyph = document.createElement('span');
-		glyph.className = 'glyph';
-		glyph.textContent = ref.kind === 'tag' ? '⌂' : ref.kind === 'remote' ? '☁' : '⑂';
-		badge.append(glyph, document.createTextNode(ref.text));
+		badge.appendChild(refIcon(ref.kind));
+		const label = document.createElement('span');
+		label.className = 'label';
+		label.textContent = ref.text;
+		badge.appendChild(label);
 		badge.addEventListener('click', event => {
 			event.stopPropagation();
 			vscode.postMessage({ type: 'setRev', rev: ref.text });
@@ -500,16 +718,28 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 		return badge;
 	}
 
+	function refsList(row, limit) {
+		const wrap = document.createElement('span');
+		wrap.className = 'refs';
+		const shown = row.refs.slice(0, limit);
+		for (const ref of shown) {
+			wrap.appendChild(refElement(ref, row));
+		}
+		if (row.refs.length > shown.length) {
+			const more = document.createElement('span');
+			more.className = 'ref more';
+			more.textContent = '+' + (row.refs.length - shown.length);
+			more.title = row.refs.map(ref => ref.text).join(', ');
+			wrap.appendChild(more);
+		}
+		return wrap;
+	}
+
 	function refsCell(row) {
 		const cell = document.createElement('div');
 		cell.className = 'cell refs';
 		cell.setAttribute('data-col', 'refs');
-		const wrap = document.createElement('span');
-		wrap.className = 'refs';
-		for (const ref of row.refs.slice(0, 3)) {
-			wrap.appendChild(refElement(ref, row));
-		}
-		cell.appendChild(wrap);
+		cell.appendChild(refsList(row, 2));
 		return cell;
 	}
 
@@ -539,26 +769,7 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 		return button;
 	}
 
-	function buildRow(row, index) {
-		const element = document.createElement('div');
-		element.className = 'row' + (selected === row.sha ? ' selected' : '') + (row.dim && ui.dimMerges ? ' dim' : '');
-		element.style.top = (index * ROW) + 'px';
-		element.setAttribute('role', 'option');
-		element.setAttribute('aria-selected', selected === row.sha ? 'true' : 'false');
-
-		const graph = document.createElement('div');
-		graph.className = 'cell graph';
-		graph.setAttribute('data-col', 'graph');
-		graph.appendChild(buildGraph(row));
-		element.appendChild(graph);
-
-		if (ui.refs) {
-			element.appendChild(refsCell(row));
-		}
-
-		const message = document.createElement('div');
-		message.className = 'cell message';
-		message.setAttribute('data-col', 'message');
+	function subjectNode(row) {
 		const subject = document.createElement('span');
 		subject.className = 'subject';
 		if (row.merge) {
@@ -569,64 +780,122 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 			subject.appendChild(merge);
 		}
 		subject.appendChild(document.createTextNode(row.subject || '(no subject)'));
-		message.appendChild(subject);
-		element.appendChild(message);
+		return subject;
+	}
 
-		if (ui.author) {
-			const author = document.createElement('div');
-			author.className = 'cell';
-			author.setAttribute('data-col', 'author');
+	function graphCell(row) {
+		const graph = document.createElement('div');
+		graph.className = 'cell graph';
+		graph.setAttribute('data-col', 'graph');
+		graph.appendChild(buildGraph(row));
+		return graph;
+	}
+
+	function buildRow(row, index) {
+		const element = document.createElement('div');
+		element.className = 'row' + (listMode ? ' list' : '') + (selected === row.sha ? ' selected' : '') + (row.dim && ui.dimMerges ? ' dim' : '');
+		element.style.top = (index * ROW) + 'px';
+		element.style.height = ROW + 'px';
+		element.setAttribute('role', 'option');
+		element.setAttribute('aria-selected', selected === row.sha ? 'true' : 'false');
+		element.appendChild(graphCell(row));
+
+		if (listMode) {
+			const content = document.createElement('div');
+			content.className = 'list-content';
+
+			const line1 = document.createElement('div');
+			line1.className = 'list-line1';
+			line1.appendChild(subjectNode(row));
+			content.appendChild(line1);
+
+			const line2 = document.createElement('div');
+			line2.className = 'list-line2';
+			if (ui.refs && row.refs.length) {
+				line2.appendChild(refsList(row, 2));
+			}
+			const short = document.createElement('span');
+			short.className = 'sha';
+			short.textContent = row.short;
+			short.title = row.sha;
+			const author = document.createElement('span');
+			author.className = 'author';
+			author.textContent = row.author;
 			author.title = row.author + ' <' + row.email + '>';
-			author.appendChild(avatarElement(row.author, row.avatarUrl));
-			const name = document.createElement('span');
-			name.className = 'name';
-			name.textContent = row.author;
-			author.appendChild(name);
-			element.appendChild(author);
-		}
+			const date = document.createElement('span');
+			date.className = 'date';
+			date.textContent = row.relative;
+			date.title = row.date;
+			line2.append(short, author, date);
+			content.appendChild(line2);
+			element.appendChild(content);
+		} else {
+			if (ui.refs) {
+				element.appendChild(refsCell(row));
+			}
 
-		if (ui.committer) {
-			const committer = document.createElement('div');
-			committer.className = 'cell';
-			committer.setAttribute('data-col', 'committer');
-			const name = document.createElement('span');
-			name.className = 'name meta';
-			name.textContent = row.committer;
-			name.title = row.committer + ' <' + row.committerEmail + '>';
-			committer.appendChild(name);
-			element.appendChild(committer);
-		}
+			const message = document.createElement('div');
+			message.className = 'cell message';
+			message.setAttribute('data-col', 'message');
+			message.appendChild(subjectNode(row));
+			element.appendChild(message);
 
-		if (ui.date) {
-			const date = document.createElement('div');
-			date.className = 'cell';
-			date.setAttribute('data-col', 'date');
-			const value = document.createElement('span');
-			value.className = 'meta';
-			value.textContent = row.relative;
-			value.title = row.date;
-			date.appendChild(value);
-			element.appendChild(date);
-		}
+			if (ui.author) {
+				const author = document.createElement('div');
+				author.className = 'cell';
+				author.setAttribute('data-col', 'author');
+				author.title = row.author + ' <' + row.email + '>';
+				author.appendChild(avatarElement(row.author, row.avatarUrl));
+				const name = document.createElement('span');
+				name.className = 'name';
+				name.textContent = row.author;
+				author.appendChild(name);
+				element.appendChild(author);
+			}
 
-		if (ui.sha) {
-			const sha = document.createElement('div');
-			sha.className = 'cell';
-			sha.setAttribute('data-col', 'sha');
-			const value = document.createElement('span');
-			value.className = 'sha';
-			value.textContent = row.short;
-			value.title = row.sha;
-			sha.appendChild(value);
-			element.appendChild(sha);
-		}
+			if (ui.changes) {
+				const changes = document.createElement('div');
+				changes.className = 'cell';
+				changes.setAttribute('data-col', 'changes');
+				changes.appendChild(changesElement(row.stats));
+				element.appendChild(changes);
+			}
 
-		if (ui.changes) {
-			const changes = document.createElement('div');
-			changes.className = 'cell';
-			changes.setAttribute('data-col', 'changes');
-			changes.appendChild(changesElement(row.stats));
-			element.appendChild(changes);
+			if (ui.date) {
+				const date = document.createElement('div');
+				date.className = 'cell';
+				date.setAttribute('data-col', 'date');
+				const value = document.createElement('span');
+				value.className = 'meta';
+				value.textContent = row.relative;
+				value.title = row.date;
+				date.appendChild(value);
+				element.appendChild(date);
+			}
+
+			if (ui.sha) {
+				const sha = document.createElement('div');
+				sha.className = 'cell';
+				sha.setAttribute('data-col', 'sha');
+				const value = document.createElement('span');
+				value.className = 'sha';
+				value.textContent = row.short;
+				value.title = row.sha;
+				sha.appendChild(value);
+				element.appendChild(sha);
+			}
+
+			if (ui.committer) {
+				const committer = document.createElement('div');
+				committer.className = 'cell';
+				committer.setAttribute('data-col', 'committer');
+				const name = document.createElement('span');
+				name.className = 'name meta';
+				name.textContent = row.committer;
+				name.title = row.committer + ' <' + row.committerEmail + '>';
+				committer.appendChild(name);
+				element.appendChild(committer);
+			}
 		}
 
 		const actions = document.createElement('div');
@@ -1138,7 +1407,11 @@ export function renderGraphHtml(webview: vscode.Webview, scriptNonce: string): s
 	/* ---------- events ---------- */
 
 	el.list.addEventListener('scroll', queueRender);
-	window.addEventListener('resize', () => applyLayout());
+	window.addEventListener('resize', () => {
+		const previous = listMode;
+		applyLayout();
+		if (previous !== listMode) { render(); }
+	});
 	el.more.addEventListener('click', () => vscode.postMessage({ type: 'loadMore' }));
 	document.getElementById('refreshBtn').addEventListener('click', () => vscode.postMessage({ type: 'refresh' }));
 	document.getElementById('filterBtn').addEventListener('click', event => openPopover(event.currentTarget, buildFilterPopover));

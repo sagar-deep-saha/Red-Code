@@ -1,6 +1,32 @@
 {
 	"releases": [
 		{
+			"version": "1.147.13",
+			"date": "2026-11-23T06:04:04.922Z",
+			"prerelease": false,
+			"notes": "### Git graph\n\n- **The commit graph now looks and behaves like GitLens.** Wide panels use the compact 24px table\n  layout with the GitLens column set — Branches / Tags, Message, Author, Changes, Date and SHA —\n  an uppercase muted header and 10px lanes. Narrow views, including the Activity Bar sidebar,\n  automatically switch to the two-line list layout: message on the first line, ref pills, short\n  SHA, author and relative date on the second.\n- **Ref pills follow the GitLens language.** Small outline pills with branch, cloud and tag icons,\n  a filled Laravel-red HEAD pill and a `+N` overflow pill. Clicking a pill still only filters the\n  history; the graph stays read-only.\n- **Working Changes row refreshed** with the current branch pill, commit-style message and change\n  counts, and the details pane uses the same dense header language.\n- **The graph is discoverable from the Activity Bar.** A new **Red Code Git** container opens the\n  commit graph as a sidebar view, not only as a command or SCM title action.\n- Columns and layout stay configurable: Committer is off by default (matching GitLens), the\n  minimap and merge-commit dimming are off by default, and the Columns menu still exposes all of\n  them with resize handles.\n\n### Fixed\n\n- Manually copied built-in extensions now point their `main` entry at `dist/extension.js`, so the\n  installed **Red Code Git** extension activates and the graph view loads.\n\nNothing else changed: this release keeps the 1.147.12 ConPTY terminal fix, the 1.147.11 classic\nsquare VS Code layout, the 1.147.10 GitHub avatar support and the 1.147.7 native-module fix.",
+			"pageUrl": "https://github.com/sagar-deep-saha/Red-Code/releases/tag/v1.147.13",
+			"installer": {
+				"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.13/RedCode-Setup.exe",
+				"sha256": "ef5a60d4b0321bac976ba72d8a2e10306a7099cb0840e44066b7e3d1ab5ec1bc",
+				"size": 322601103
+			},
+			"installers": [
+				{
+					"arch": "x64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.13/RedCode-Setup.exe",
+					"sha256": "ef5a60d4b0321bac976ba72d8a2e10306a7099cb0840e44066b7e3d1ab5ec1bc",
+					"size": 322601103
+				},
+				{
+					"arch": "arm64",
+					"url": "https://github.com/sagar-deep-saha/Red-Code/releases/download/v1.147.13/RedCode-Setup-arm64.exe",
+					"sha256": "5a56664abe1b9e8ec7ca3d7d95a7099ccf529a595ef4c348355f0d3e4a6a8957",
+					"size": 317370224
+				}
+			]
+		},
+		{
 			"version": "1.147.12",
 			"date": "2026-11-22T17:18:01.319Z",
 			"prerelease": false,

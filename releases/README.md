@@ -22,14 +22,15 @@ Keep the upstream `major.minor` and increment the patch for each Red Code build:
 | GitHub profile photos in the commit graph | `1.147.10` |
 | Classic square VS Code layout by default | `1.147.11` |
 | Integrated terminal ConPTY packaging fix | `1.147.12` |
+| GitLens-style commit graph and Activity Bar graph view | `1.147.13` |
 
 `1.147.0` was built locally and never published, so `versions.json` starts at `1.147.1`; a history
-must not advertise a download that does not exist. The latest published build is `1.147.12`:
+must not advertise a download that does not exist. The latest published build is `1.147.13`:
 
 | Asset | Size | SHA-256 |
 |---|---|---|
-| `RedCode-Setup.exe` (x64) | 322,595,328 | `1505d862…8680dfda7` |
-| `RedCode-Setup-arm64.exe` | 317,486,011 | `32a842d3…885f5b5f15` |
+| `RedCode-Setup.exe` (x64) | 322,601,103 | `ef5a60d4…d1ab5ec1bc` |
+| `RedCode-Setup-arm64.exe` | 317,370,224 | `5a56664a…0d3e4a6a8957` |
 
 `1.147.6` was withdrawn as a startup regression: its installers were assembled with dependency
 scripts disabled, so no native module was compiled and the app exited with

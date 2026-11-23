@@ -85,6 +85,36 @@ interface SerializedRow {
 	stats: CommitStats;
 }
 
+/**
+ * A webview host for the graph. The editor panel and the activity bar view both
+ * present the same HTML, so the panel code talks to this small adapter instead
+ * of `vscode.WebviewPanel`.
+ */
+interface GraphHost {
+	readonly webview: vscode.Webview;
+	readonly onDidDispose: (listener: () => void) => vscode.Disposable;
+	reveal(): void;
+	setTitle(title: string): void;
+}
+
+function panelHost(panel: vscode.WebviewPanel): GraphHost {
+	return {
+		webview: panel.webview,
+		onDidDispose: listener => panel.onDidDispose(listener),
+		reveal: () => panel.reveal(vscode.ViewColumn.Active),
+		setTitle: title => { panel.title = title; }
+	};
+}
+
+function viewHost(view: vscode.WebviewView): GraphHost {
+	return {
+		webview: view.webview,
+		onDidDispose: listener => view.onDidDispose(listener),
+		reveal: () => view.show(true),
+		setTitle: title => { view.description = title; }
+	};
+}
+
 function nonce(): string {
 	const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 	let value = '';
@@ -100,6 +130,8 @@ function emptyStats(): CommitStats {
 
 export class GraphPanel implements vscode.Disposable {
 	private panel: vscode.WebviewPanel | undefined;
+	private panelHost: GraphHost | undefined;
+	private readonly hosts = new Map<GraphHost, vscode.Disposable[]>();
 	private readonly disposables: vscode.Disposable[] = [];
 	private limit = 300;
 	private rows: GraphRow[] = [];
@@ -125,6 +157,12 @@ export class GraphPanel implements vscode.Disposable {
 
 	dispose(): void {
 		this.panel?.dispose();
+		for (const listeners of this.hosts.values()) {
+			for (const disposable of listeners) {
+				disposable.dispose();
+			}
+		}
+		this.hosts.clear();
 		this.githubAvatars.dispose();
 		for (const disposable of this.disposables) {
 			disposable.dispose();
@@ -132,7 +170,7 @@ export class GraphPanel implements vscode.Disposable {
 	}
 
 	get isOpen(): boolean {
-		return this.panel !== undefined;
+		return this.hosts.size > 0;
 	}
 
 	/** Drops every resolved avatar, so the next refresh asks GitHub again. */
@@ -149,16 +187,14 @@ export class GraphPanel implements vscode.Disposable {
 		}
 
 		if (!this.panel) {
-			this.panel = vscode.window.createWebviewPanel('redCode.git.graph', 'Commit Graph', vscode.ViewColumn.Active, {
+			const panel = vscode.window.createWebviewPanel('redCode.git.graph', 'Commit Graph', vscode.ViewColumn.Active, {
 				enableScripts: true,
 				retainContextWhenHidden: true,
 				localResourceRoots: []
 			});
-			this.panel.webview.html = renderGraphHtml(this.panel.webview, nonce());
-			this.panel.onDidDispose(() => {
-				this.panel = undefined;
-			}, undefined, this.disposables);
-			this.panel.webview.onDidReceiveMessage(message => void this.onMessage(message as GraphMessage), undefined, this.disposables);
+			this.panel = panel;
+			this.panelHost = panelHost(panel);
+			this.attach(this.panelHost);
 		} else {
 			this.panel.reveal(vscode.ViewColumn.Active);
 		}
@@ -167,8 +203,35 @@ export class GraphPanel implements vscode.Disposable {
 		await this.reload();
 	}
 
+	/** Renders the same graph inside the activity bar view. */
+	async showView(view: vscode.WebviewView): Promise<void> {
+		this.attach(viewHost(view));
+		this.limit = this.deps.pageSize();
+		await this.reload();
+	}
+
+	private attach(host: GraphHost): void {
+		const listeners = [
+			host.webview.onDidReceiveMessage(message => void this.onMessage(message as GraphMessage)),
+			host.onDidDispose(() => this.detach(host))
+		];
+		this.hosts.set(host, listeners);
+		host.webview.html = renderGraphHtml(host.webview, nonce());
+	}
+
+	private detach(host: GraphHost): void {
+		for (const disposable of this.hosts.get(host) ?? []) {
+			disposable.dispose();
+		}
+		this.hosts.delete(host);
+		if (host === this.panelHost) {
+			this.panelHost = undefined;
+			this.panel = undefined;
+		}
+	}
+
 	async refresh(): Promise<void> {
-		if (!this.panel) {
+		if (this.hosts.size === 0) {
 			return;
 		}
 		await this.reload();
@@ -180,7 +243,11 @@ export class GraphPanel implements vscode.Disposable {
 
 	private async reload(): Promise<void> {
 		const root = this.deps.root();
-		if (!root || !this.panel) {
+		if (!root) {
+			await this.post({ type: 'error', message: 'Open a folder inside a git repository to see its commit graph.' });
+			return;
+		}
+		if (this.hosts.size === 0) {
 			return;
 		}
 
@@ -208,7 +275,9 @@ export class GraphPanel implements vscode.Disposable {
 			this.dirtyFiles = status.dirtyFiles;
 			this.headSet = headSet;
 			this.hasMore = commits.length >= this.limit;
-			this.panel.title = `Commit Graph: ${this.repoLabel}`;
+			for (const host of this.hosts.keys()) {
+				host.setTitle(`Commit Graph: ${this.repoLabel}`);
+			}
 
 			if (this.selected && !commits.some(commit => commit.sha === this.selected?.details.sha)) {
 				this.selected = undefined;
@@ -485,7 +554,7 @@ export class GraphPanel implements vscode.Disposable {
 		await this.post({ type: 'error', message });
 	}
 
-	private post(payload: unknown): Thenable<boolean> {
-		return this.panel ? this.panel.webview.postMessage(payload) : Promise.resolve(false);
+	private async post(payload: unknown): Promise<void> {
+		await Promise.all([...this.hosts.keys()].map(host => host.webview.postMessage(payload)));
 	}
 }

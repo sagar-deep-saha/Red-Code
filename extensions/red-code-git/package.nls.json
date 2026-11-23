@@ -2,6 +2,8 @@
 	"displayName": "Red Code Git",
 	"description": "A GitLens-style commit graph with inline blame, commit details and read-only diff previews.",
 	"configTitle": "Red Code Git",
+	"gitViewContainerTitle": "Red Code Git",
+	"gitGraphViewName": "Commit Graph",
 	"showGraphCommand": "Show Git Graph",
 	"refreshCommand": "Refresh Git Graph",
 	"toggleBlameCommand": "Toggle Inline Blame",

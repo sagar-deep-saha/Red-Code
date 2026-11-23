@@ -17,6 +17,7 @@
 	},
 	"activationEvents": [
 		"onStartupFinished",
+		"onView:redCode.git.graphView",
 		"onCommand:redCode.git.showGraph",
 		"onCommand:redCode.git.refresh",
 		"onCommand:redCode.git.toggleBlame",
@@ -33,7 +34,8 @@
 			{
 				"command": "redCode.git.refresh",
 				"title": "%refreshCommand%",
-				"category": "Red Code Git"
+				"category": "Red Code Git",
+				"icon": "$(refresh)"
 			},
 			{
 				"command": "redCode.git.toggleBlame",
@@ -46,7 +48,37 @@
 				"category": "Red Code Git"
 			}
 		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "redCodeGit",
+					"title": "%gitViewContainerTitle%",
+					"icon": "media/graph.svg"
+				}
+			]
+		},
+		"views": {
+			"redCodeGit": [
+				{
+					"type": "webview",
+					"id": "redCode.git.graphView",
+					"name": "%gitGraphViewName%"
+				}
+			]
+		},
 		"menus": {
+			"view/title": [
+				{
+					"command": "redCode.git.showGraph",
+					"when": "view == redCode.git.graphView",
+					"group": "navigation@1"
+				},
+				{
+					"command": "redCode.git.refresh",
+					"when": "view == redCode.git.graphView",
+					"group": "navigation@2"
+				}
+			],
 			"scm/title": [
 				{
 					"command": "redCode.git.showGraph",

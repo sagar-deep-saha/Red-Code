@@ -98,6 +98,12 @@ export function activate(context: vscode.ExtensionContext): void {
 		provider,
 		blame,
 		panel,
+		vscode.window.registerWebviewViewProvider('redCode.git.graphView', {
+			resolveWebviewView: async view => {
+				await resolveRoot(false);
+				await panel.showView(view);
+			}
+		}, { webviewOptions: { retainContextWhenHidden: true } }),
 		vscode.workspace.registerTextDocumentContentProvider(GitContentProvider.scheme, provider),
 		vscode.commands.registerCommand('redCode.git.showGraph', async () => {
 			const resolved = await resolveRoot(true);
